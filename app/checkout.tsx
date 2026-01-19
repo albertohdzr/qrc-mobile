@@ -1,21 +1,20 @@
-import React, { useState, useEffect } from 'react'
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  FlatList,
-} from 'react-native'
+import { formatCurrency, processPayment } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth-store'
+import { CartItem, useCartStore } from '@/stores/cart-store'
+import { EventProduct, Product } from '@/types/database'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { useAuthStore } from '@/stores/auth-store'
-import { useCartStore, CartItem } from '@/stores/cart-store'
-import { supabase } from '@/lib/supabase'
-import { processPayment, formatCurrency } from '@/lib/api'
-import { EventProduct, Product } from '@/types/database'
+import React, { useEffect, useState } from 'react'
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native'
 
 interface ProductWithBase extends EventProduct {
   base_product: Product
@@ -45,7 +44,7 @@ export default function CheckoutScreen() {
 
   useEffect(() => {
     if (!scannedCode5) {
-      router.replace('/(tabs)')
+      router.back()
       return
     }
     loadProducts()
@@ -144,7 +143,7 @@ export default function CheckoutScreen() {
                     text: 'Volver al Inicio',
                     onPress: () => {
                       clearWallet()
-                      router.replace('/(tabs)')
+                      router.dismissAll()
                     },
                   },
                 ]
@@ -171,7 +170,7 @@ export default function CheckoutScreen() {
           style: 'destructive',
           onPress: () => {
             clearWallet()
-            router.replace('/(tabs)')
+            router.back()
           },
         },
       ]

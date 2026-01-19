@@ -95,6 +95,46 @@ export default function RootLayout() {
           }} 
         />
         <Stack.Screen 
+          name="create-wallet" 
+          options={{ 
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }} 
+        />
+        <Stack.Screen 
+          name="assign-qr" 
+          options={{ 
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }} 
+        />
+        <Stack.Screen 
+          name="wallet-details" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="search-wallet" 
+          options={{ 
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }} 
+        />
+        <Stack.Screen 
+          name="event-products" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="transfer" 
+          options={{ 
+            headerShown: false,
+            presentation: 'fullScreenModal',
+          }} 
+        />
+        <Stack.Screen 
           name="select-org" 
           options={{ 
             presentation: 'modal', 

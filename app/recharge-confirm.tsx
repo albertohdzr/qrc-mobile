@@ -1,17 +1,17 @@
-import React, { useState } from 'react'
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-} from 'react-native'
+import { formatCurrency } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useAuthStore } from '@/stores/auth-store'
-import { supabase } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/api'
+import React, { useState } from 'react'
+import {
+    ActivityIndicator,
+    Alert,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native'
 
 export default function RechargeConfirmScreen() {
   const { currentOrg, currentEvent } = useAuthStore()
@@ -40,8 +40,8 @@ export default function RechargeConfirmScreen() {
 
     try {
       // 1. Crear el movimiento de depósito
-      const { data: movement, error: movementError } = await supabase
-        .from('movements')
+      const { data: movement, error: movementError } = await (supabase
+        .from('movements') as any)
         .insert({
           org_id: currentOrg.id,
           wallet_id: params.walletId,
@@ -50,22 +50,22 @@ export default function RechargeConfirmScreen() {
           amount_cents: amountCents,
           notes: `Recarga manual - QR: ${params.code5}`,
         })
-        .select()
+        .select('id')
         .single()
 
-      if (movementError) {
+      if (movementError || !movement) {
         throw new Error('Error al registrar la recarga')
       }
 
       // 2. Actualizar el balance de la wallet
-      const { error: walletError } = await supabase
-        .from('wallets')
+      const { error: walletError } = await (supabase
+        .from('wallets') as any)
         .update({ balance_cents: newBalanceCents })
         .eq('id', params.walletId)
 
       if (walletError) {
         // Rollback: eliminar el movimiento
-        await supabase.from('movements').delete().eq('id', movement.id)
+        await (supabase.from('movements') as any).delete().eq('id', movement.id)
         throw new Error('Error al actualizar el saldo')
       }
 

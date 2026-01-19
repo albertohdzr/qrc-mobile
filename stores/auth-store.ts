@@ -72,8 +72,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .single()
 
       // Load organization memberships with org details
-      const { data: memberships } = await supabase
-        .from('organization_members')
+      const { data: memberships } = await (supabase
+        .from('organization_members') as any)
         .select(`
           role,
           org_id,
@@ -82,16 +82,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .eq('user_id', session.user.id)
 
       const organizations = (memberships ?? [])
-        .filter(m => m.organizations)
-        .map(m => ({
+        .filter((m: any) => m.organizations)
+        .map((m: any) => ({
           ...(m.organizations as Organization),
           role: m.role,
         }))
 
       // Determine current org (use last_org_id from profile or first org)
       let currentOrg = organizations[0] ?? null
-      if (profile?.last_org_id) {
-        const lastOrg = organizations.find(o => o.id === profile.last_org_id)
+      if ((profile as any)?.last_org_id) {
+        const lastOrg = organizations.find((o: any) => o.id === (profile as any).last_org_id)
         if (lastOrg) currentOrg = lastOrg
       }
 
@@ -134,8 +134,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Update last_org_id in profile
     if (session?.user) {
-      await supabase
-        .from('profiles')
+      await (supabase
+        .from('profiles') as any)
         .upsert({ 
           user_id: session.user.id, 
           last_org_id: org.id 
@@ -143,15 +143,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Load events for new org
-    const { data: eventsData } = await supabase
-      .from('events')
+    const { data: eventsData } = await (supabase
+      .from('events') as any)
       .select('*')
       .eq('org_id', org.id)
       .in('status', ['active', 'draft'])
       .order('starts_at', { ascending: false })
 
     const events = eventsData ?? []
-    const currentEvent = events.find(e => e.status === 'active') ?? events[0] ?? null
+    const currentEvent = events.find((e: any) => e.status === 'active') ?? events[0] ?? null
 
     set({ events, currentEvent })
   },
@@ -161,8 +161,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
+    // Solo llamamos signOut de supabase
+    // El listener onAuthStateChange en _layout.tsx se encargará de hacer reset
     await supabase.auth.signOut()
-    get().reset()
   },
 
   reset: () => {

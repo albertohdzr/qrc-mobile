@@ -1,19 +1,92 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
+import { supabase } from '@/lib/supabase'
+import { formatCurrency } from '@/lib/api'
+import { Wallet } from '@/types/database'
+
+interface WalletWithQr extends Wallet {
+  qrs: { code_5: string }[] | null
+}
 
 export default function WalletsScreen() {
   const { currentOrg, currentEvent, canAccessFeature } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
+  const [wallets, setWallets] = useState<WalletWithQr[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [stats, setStats] = useState({ count: 0, totalBalance: 0 })
+
+  const loadWallets = async (showLoader = true) => {
+    if (!currentOrg || !currentEvent) return
+
+    if (showLoader) setIsLoading(true)
+
+    try {
+      let query = supabase
+        .from('wallets')
+        .select(`
+          *,
+          qrs(code_5)
+        `)
+        .eq('org_id', currentOrg.id)
+        .eq('event_id', currentEvent.id)
+        .order('created_at', { ascending: false })
+
+      if (searchQuery.trim()) {
+        query = query.or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      const walletsData = (data as WalletWithQr[]) ?? []
+      setWallets(walletsData)
+
+      // Calculate stats
+      const totalBalance = walletsData.reduce((sum, w) => sum + w.balance_cents, 0)
+      setStats({
+        count: walletsData.filter(w => w.status === 'active').length,
+        totalBalance,
+      })
+    } catch (error) {
+      console.error('Error loading wallets:', error)
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }
+
+  // Reload when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadWallets()
+    }, [currentOrg, currentEvent, searchQuery])
+  )
+
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    loadWallets(false)
+  }
+
+  const handleWalletPress = (wallet: WalletWithQr) => {
+    router.push({
+      pathname: '/wallet-details',
+      params: { walletId: wallet.id },
+    })
+  }
 
   if (!canAccessFeature('wallets')) {
     return (
@@ -24,6 +97,64 @@ export default function WalletsScreen() {
           No tienes permisos para gestionar wallets
         </Text>
       </View>
+    )
+  }
+
+  const renderWallet = ({ item }: { item: WalletWithQr }) => {
+    const qrCode = item.qrs?.[0]?.code_5
+    
+    return (
+      <TouchableOpacity
+        style={styles.walletCard}
+        onPress={() => handleWalletPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.walletIcon}>
+          <Ionicons 
+            name={item.status === 'active' ? 'wallet' : 'lock-closed'} 
+            size={24} 
+            color={item.status === 'active' ? '#059669' : '#DC2626'} 
+          />
+        </View>
+        <View style={styles.walletInfo}>
+          <Text style={styles.walletName} numberOfLines={1}>
+            {item.name || item.phone || 'Sin nombre'}
+          </Text>
+          <View style={styles.walletMeta}>
+            {item.phone && (
+              <View style={styles.metaItem}>
+                <Ionicons name="call-outline" size={12} color="#9CA3AF" />
+                <Text style={styles.metaText}>{item.phone}</Text>
+              </View>
+            )}
+            {qrCode && (
+              <View style={styles.metaItem}>
+                <Ionicons name="qr-code-outline" size={12} color="#9CA3AF" />
+                <Text style={styles.metaText}>{qrCode}</Text>
+              </View>
+            )}
+            {!qrCode && (
+              <View style={[styles.metaItem, styles.noQrBadge]}>
+                <Text style={styles.noQrText}>Sin QR</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <View style={styles.walletBalance}>
+          <Text style={[
+            styles.balanceAmount,
+            item.balance_cents === 0 && styles.balanceZero
+          ]}>
+            {formatCurrency(item.balance_cents)}
+          </Text>
+          {item.status === 'blocked' && (
+            <View style={styles.blockedBadge}>
+              <Text style={styles.blockedText}>Bloqueada</Text>
+            </View>
+          )}
+        </View>
+        <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+      </TouchableOpacity>
     )
   }
 
@@ -63,10 +194,7 @@ export default function WalletsScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-        >
+        <View style={styles.content}>
           {/* Search */}
           <View style={styles.searchContainer}>
             <Ionicons name="search-outline" size={20} color="#9CA3AF" />
@@ -77,10 +205,19 @@ export default function WalletsScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Create Button */}
-          <TouchableOpacity style={styles.createButton} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={styles.createButton} 
+            activeOpacity={0.8}
+            onPress={() => router.push('/create-wallet')}
+          >
             <Ionicons name="add-circle" size={24} color="#fff" />
             <Text style={styles.createButtonText}>Crear Nueva Wallet</Text>
           </TouchableOpacity>
@@ -88,26 +225,45 @@ export default function WalletsScreen() {
           {/* Stats */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statValue}>{stats.count}</Text>
               <Text style={styles.statLabel}>Wallets Activas</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>$0.00</Text>
+              <Text style={styles.statValue}>{formatCurrency(stats.totalBalance)}</Text>
               <Text style={styles.statLabel}>Balance Total</Text>
             </View>
           </View>
 
-          {/* Empty state for wallets list */}
-          <View style={styles.listEmptyState}>
-            <Ionicons name="wallet-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.listEmptyText}>
-              No hay wallets para este evento
-            </Text>
-            <Text style={styles.listEmptySubtext}>
-              Crea una nueva wallet para comenzar
-            </Text>
-          </View>
-        </ScrollView>
+          {/* Wallets List */}
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#1F2937" style={styles.loader} />
+          ) : wallets.length === 0 ? (
+            <View style={styles.listEmptyState}>
+              <Ionicons name="wallet-outline" size={48} color="#D1D5DB" />
+              <Text style={styles.listEmptyText}>
+                {searchQuery ? 'No se encontraron wallets' : 'No hay wallets para este evento'}
+              </Text>
+              <Text style={styles.listEmptySubtext}>
+                {searchQuery ? 'Intenta con otra búsqueda' : 'Crea una nueva wallet para comenzar'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={wallets}
+              renderItem={renderWallet}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                  tintColor="#1F2937"
+                />
+              }
+            />
+          )}
+        </View>
       )}
     </View>
   )
@@ -145,8 +301,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  contentContainer: {
     padding: 16,
   },
   emptyState: {
@@ -252,6 +406,92 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     marginTop: 4,
+  },
+  loader: {
+    marginTop: 40,
+  },
+  listContent: {
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  walletCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  walletIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  walletInfo: {
+    flex: 1,
+  },
+  walletName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  walletMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 10,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  noQrBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  noQrText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#D97706',
+  },
+  walletBalance: {
+    alignItems: 'flex-end',
+  },
+  balanceAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  balanceZero: {
+    color: '#9CA3AF',
+  },
+  blockedBadge: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  blockedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#DC2626',
   },
   listEmptyState: {
     alignItems: 'center',

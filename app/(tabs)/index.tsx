@@ -1,17 +1,60 @@
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   StyleSheet,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
+  FlatList,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
+import { supabase } from '@/lib/supabase'
+import { EventArea } from '@/types/database'
 
 export default function POSScreen() {
   const { currentOrg, currentEvent } = useAuthStore()
+  const [areas, setAreas] = useState<EventArea[]>([])
+  const [selectedArea, setSelectedArea] = useState<EventArea | null>(null)
+
+  useFocusEffect(
+    useCallback(() => {
+      if (currentOrg && currentEvent) {
+        loadAreas()
+      }
+    }, [currentOrg, currentEvent])
+  )
+
+  const loadAreas = async () => {
+    if (!currentOrg || !currentEvent) return
+
+    const { data, error } = await supabase
+      .from('event_areas')
+      .select('*')
+      .eq('org_id', currentOrg.id)
+      .eq('event_id', currentEvent.id)
+      .order('name')
+
+    if (!error && data) {
+      setAreas(data)
+      // Auto-select first area if none selected
+      if (!selectedArea && data.length > 0) {
+        setSelectedArea(data[0])
+      }
+    }
+  }
+
+  const handleScanForSale = () => {
+    if (selectedArea) {
+      router.push({
+        pathname: '/scanner',
+        params: { areaId: selectedArea.id },
+      })
+    } else {
+      router.push('/scanner')
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -55,19 +98,50 @@ export default function POSScreen() {
         <ScrollView 
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
         >
+          {/* Areas Selector */}
+          {areas.length > 0 && (
+            <View style={styles.areasSection}>
+              <Text style={styles.sectionTitle}>Área</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.areasContainer}
+              >
+                {areas.map((area) => (
+                  <TouchableOpacity
+                    key={area.id}
+                    style={[
+                      styles.areaChip,
+                      selectedArea?.id === area.id && styles.areaChipActive,
+                    ]}
+                    onPress={() => setSelectedArea(area)}
+                  >
+                    <Text style={[
+                      styles.areaChipText,
+                      selectedArea?.id === area.id && styles.areaChipTextActive,
+                    ]}>
+                      {area.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Scan QR Button */}
           <TouchableOpacity 
             style={styles.scanButton} 
             activeOpacity={0.8}
-            onPress={() => router.push('/scanner')}
+            onPress={handleScanForSale}
           >
             <View style={styles.scanIconContainer}>
               <Ionicons name="qr-code-outline" size={48} color="#fff" />
             </View>
-            <Text style={styles.scanTitle}>Escanear QR</Text>
+            <Text style={styles.scanTitle}>Escanear para Vender</Text>
             <Text style={styles.scanSubtitle}>
-              Escanea el código QR de la pulsera o tarjeta para realizar una venta
+              Escanea el QR de la pulsera o tarjeta para realizar una venta
             </Text>
           </TouchableOpacity>
 
@@ -76,28 +150,40 @@ export default function POSScreen() {
             <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
             
             <View style={styles.actionsGrid}>
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('/search-wallet')}
+              >
                 <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
                   <Ionicons name="search-outline" size={24} color="#4F46E5" />
                 </View>
                 <Text style={styles.actionText}>Buscar Wallet</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('/transfer')}
+              >
                 <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="receipt-outline" size={24} color="#D97706" />
+                  <Ionicons name="swap-horizontal-outline" size={24} color="#D97706" />
                 </View>
-                <Text style={styles.actionText}>Historial</Text>
+                <Text style={styles.actionText}>Transferencia</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('/event-products')}
+              >
                 <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
                   <Ionicons name="pricetag-outline" size={24} color="#059669" />
                 </View>
                 <Text style={styles.actionText}>Productos</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionCard}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => {}}
+              >
                 <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
                   <Ionicons name="refresh-outline" size={24} color="#DC2626" />
                 </View>
@@ -187,6 +273,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
+  },
+  areasSection: {
+    marginBottom: 16,
+  },
+  areasContainer: {
+    paddingVertical: 4,
+    gap: 8,
+  },
+  areaChip: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+  },
+  areaChipActive: {
+    backgroundColor: '#1F2937',
+    borderColor: '#1F2937',
+  },
+  areaChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  areaChipTextActive: {
+    color: '#fff',
   },
   scanButton: {
     backgroundColor: '#1F2937',

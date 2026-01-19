@@ -2,7 +2,7 @@ export type OrgRole = 'owner' | 'admin' | 'cashier'
 export type WalletStatus = 'active' | 'blocked'
 export type QrStatus = 'available' | 'assigned' | 'inactive'
 export type QrType = 'bracelet' | 'card' | 'digital'
-export type MovementType = 'payment' | 'deposit' | 'initial_deposit' | 'refund'
+export type MovementType = 'payment' | 'deposit' | 'initial_deposit' | 'refund' | 'transfer_out' | 'transfer_in'
 export type EventStatus = 'draft' | 'active' | 'paused' | 'ended'
 export type ProductStatus = 'active' | 'inactive'
 export type ProductType = 'limited' | 'unlimited'
@@ -104,6 +104,7 @@ export interface Movement {
   amount_cents: number
   qr_id: string | null
   original_movement_id: string | null
+  linked_movement_id: string | null
   reference: string | null
   notes: string | null
   created_by: string | null
@@ -187,67 +188,99 @@ export interface Database {
         Row: Profile
         Insert: Partial<Profile> & { user_id: string }
         Update: Partial<Profile>
+        Relationships: []
       }
       organizations: {
         Row: Organization
         Insert: Omit<Organization, 'id' | 'created_at'> & { id?: string }
         Update: Partial<Organization>
+        Relationships: []
       }
       organization_members: {
         Row: OrganizationMember
         Insert: Omit<OrganizationMember, 'created_at'>
         Update: Partial<OrganizationMember>
+        Relationships: []
       }
       events: {
         Row: Event
         Insert: Omit<Event, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<Event>
+        Relationships: []
       }
       wallets: {
         Row: Wallet
         Insert: Omit<Wallet, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<Wallet>
+        Relationships: []
       }
       qrs: {
         Row: Qr
         Insert: Omit<Qr, 'id' | 'created_at'> & { id?: string }
         Update: Partial<Qr>
+        Relationships: []
       }
       qr_batches: {
         Row: QrBatch
         Insert: Omit<QrBatch, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<QrBatch>
+        Relationships: []
       }
       movements: {
         Row: Movement
         Insert: Omit<Movement, 'id' | 'created_at'> & { id?: string }
         Update: Partial<Movement>
+        Relationships: []
       }
       products: {
         Row: Product
         Insert: Omit<Product, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<Product>
+        Relationships: []
       }
       event_areas: {
         Row: EventArea
         Insert: Omit<EventArea, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<EventArea>
+        Relationships: []
       }
       event_products: {
         Row: EventProduct
         Insert: Omit<EventProduct, 'id' | 'created_at' | 'updated_at'> & { id?: string }
         Update: Partial<EventProduct>
+        Relationships: []
       }
       movement_items: {
         Row: MovementItem
         Insert: Omit<MovementItem, 'id' | 'created_at'> & { id?: string }
         Update: Partial<MovementItem>
+        Relationships: []
       }
       refund_items: {
         Row: RefundItem
         Insert: Omit<RefundItem, 'id' | 'created_at'> & { id?: string }
         Update: Partial<RefundItem>
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      org_role: OrgRole
+      wallet_status: WalletStatus
+      qr_status: QrStatus
+      qr_type: QrType
+      movement_type: MovementType
+      event_status: EventStatus
+      product_status: ProductStatus
+      product_type: ProductType
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

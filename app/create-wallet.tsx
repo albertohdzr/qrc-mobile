@@ -1,11 +1,9 @@
 import { formatCurrency } from '@/lib/api'
-import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React, { useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -26,8 +24,6 @@ export default function CreateWalletScreen() {
   const [phone, setPhone] = useState('')
   const [selectedAmount, setSelectedAmount] = useState<number>(0)
   const [customAmount, setCustomAmount] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
-
   const activeAmount = selectedAmount > 0 ? selectedAmount : (customAmount ? parseInt(customAmount) : 0)
   const amountCents = activeAmount * 100
 
@@ -42,7 +38,7 @@ export default function CreateWalletScreen() {
     setSelectedAmount(0)
   }
 
-  const handleCreateWallet = async () => {
+  const handleConfirmAndScan = () => {
     if (!currentOrg || !currentEvent) {
       Alert.alert('Error', 'Selecciona una organización y evento primero')
       return
@@ -53,70 +49,31 @@ export default function CreateWalletScreen() {
       return
     }
 
-    setIsCreating(true)
+    const trimmedName = name.trim()
+    const trimmedPhone = phone.trim()
+    const walletLabel = trimmedName || trimmedPhone || 'Nueva Wallet'
 
-    try {
-      // Crear la wallet
-      const { data: wallet, error: walletError } = await (supabase
-        .from('wallets') as any)
-        .insert({
-          org_id: currentOrg.id,
-          event_id: currentEvent.id,
-          name: name.trim() || null,
-          phone: phone.trim() || null,
-          balance_cents: amountCents,
-          status: 'active',
-        })
-        .select()
-        .single()
-
-      if (walletError) {
-        console.error('Error creating wallet:', walletError)
-        
-        // Check for duplicate phone error
-        if (walletError.code === '23505') {
-          Alert.alert('Error', 'Ya existe una wallet con este teléfono en esta organización')
-          setIsCreating(false)
-          return
-        }
-        
-        throw walletError
-      }
-
-      // Si hay monto inicial, crear movimiento de depósito inicial
-      if (amountCents > 0) {
-        const { error: movementError } = await (supabase
-          .from('movements') as any)
-          .insert({
-            org_id: currentOrg.id,
-            wallet_id: wallet.id,
-            event_id: currentEvent.id,
-            type: 'initial_deposit',
-            amount_cents: amountCents,
-            notes: 'Depósito inicial al crear wallet',
-          })
-
-        if (movementError) {
-          console.error('Error creating initial deposit:', movementError)
-          // No hacemos rollback, la wallet ya está creada
-        }
-      }
-
-      // Navegar al scanner para asociar QR
-      router.replace({
-        pathname: '/assign-qr',
-        params: {
-          walletId: wallet.id,
-          walletName: wallet.name || wallet.phone || 'Nueva Wallet',
-          balanceCents: wallet.balance_cents.toString(),
+    Alert.alert(
+      'Confirmar datos',
+      `Nombre: ${trimmedName || 'Sin nombre'}\nTeléfono: ${trimmedPhone || 'Sin teléfono'}\nTotal: ${formatCurrency(amountCents)}`,
+      [
+        { text: 'Editar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          onPress: () => {
+            router.push({
+              pathname: '/assign-qr',
+              params: {
+                name: trimmedName,
+                phone: trimmedPhone,
+                walletName: walletLabel,
+                amountCents: amountCents.toString(),
+              },
+            })
+          },
         },
-      })
-    } catch (error: any) {
-      console.error('Error:', error)
-      Alert.alert('Error', error.message || 'No se pudo crear la wallet')
-    } finally {
-      setIsCreating(false)
-    }
+      ]
+    )
   }
 
   const handleCancel = () => {
@@ -184,7 +141,7 @@ export default function CreateWalletScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
-                editable={!isCreating}
+                editable
               />
             </View>
           </View>
@@ -201,7 +158,7 @@ export default function CreateWalletScreen() {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 maxLength={10}
-                editable={!isCreating}
+                editable
               />
             </View>
           </View>
@@ -220,7 +177,6 @@ export default function CreateWalletScreen() {
                   selectedAmount === amount && styles.amountButtonActive,
                 ]}
                 onPress={() => handleAmountSelect(amount)}
-                disabled={isCreating}
               >
                 <Text
                   style={[
@@ -245,7 +201,7 @@ export default function CreateWalletScreen() {
                 value={customAmount}
                 onChangeText={handleCustomAmountChange}
                 keyboardType="numeric"
-                editable={!isCreating}
+                editable
               />
             </View>
           </View>
@@ -265,18 +221,13 @@ export default function CreateWalletScreen() {
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.createButton, isCreating && styles.createButtonDisabled]}
-          onPress={handleCreateWallet}
-          disabled={isCreating}
+          style={styles.createButton}
+          onPress={handleConfirmAndScan}
         >
-          {isCreating ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="add-circle" size={24} color="#fff" />
-              <Text style={styles.createButtonText}>Crear y Asignar QR</Text>
-            </>
-          )}
+          <>
+            <Ionicons name="add-circle" size={24} color="#fff" />
+            <Text style={styles.createButtonText}>Crear y Asignar QR</Text>
+          </>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -494,9 +445,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
-  },
-  createButtonDisabled: {
-    opacity: 0.7,
   },
   createButtonText: {
     fontSize: 16,

@@ -2,17 +2,18 @@ import { supabase } from '@/lib/supabase'
 import { Ionicons } from '@expo/vector-icons'
 import React, { useState } from 'react'
 import {
-    ActivityIndicator,
-    Alert,
-    AppState,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  AppState,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native'
 
 // Auto refresh session when app is in foreground
@@ -29,7 +30,6 @@ export default function Auth() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [isSignUp, setIsSignUp] = useState(false)
 
   async function signInWithEmail() {
     if (!email || !password) {
@@ -45,31 +45,6 @@ export default function Auth() {
 
     if (error) {
       Alert.alert('Error', translateError(error.message))
-    }
-    setLoading(false)
-  }
-
-  async function signUpWithEmail() {
-    if (!email || !password) {
-      Alert.alert('Error', 'Por favor ingresa tu email y contraseña')
-      return
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres')
-      return
-    }
-
-    setLoading(true)
-    const { data: { session }, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password,
-    })
-
-    if (error) {
-      Alert.alert('Error', translateError(error.message))
-    } else if (!session) {
-      Alert.alert('Verificación requerida', 'Revisa tu correo para verificar tu cuenta')
     }
     setLoading(false)
   }
@@ -97,20 +72,17 @@ export default function Auth() {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <View style={styles.logoIcon}>
-            <Ionicons name="wallet-outline" size={40} color="#fff" />
+            <Image
+              source={require('../assets/images/logos/white-logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         </View>
 
         {/* Header */}
-        <Text style={styles.title}>
-          {isSignUp ? 'Crear cuenta' : 'Bienvenido'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {isSignUp
-            ? 'Registra tu cuenta para continuar'
-            : 'Inicia sesión en tu cuenta'
-          }
-        </Text>
+        <Text style={styles.title}>Bienvenido</Text>
+        <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
 
         {/* Email Input */}
         <View style={styles.inputGroup}>
@@ -161,17 +133,15 @@ export default function Auth() {
           </View>
         </View>
 
-        {/* Forgot Password (only on login) */}
-        {!isSignUp && (
-          <TouchableOpacity style={styles.forgotButton} disabled={loading}>
-            <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-          </TouchableOpacity>
-        )}
+        {/* Forgot Password */}
+        <TouchableOpacity style={styles.forgotButton} disabled={loading}>
+          <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+        </TouchableOpacity>
 
         {/* Main Button */}
         <TouchableOpacity
           style={[styles.mainButton, loading && styles.mainButtonDisabled]}
-          onPress={isSignUp ? signUpWithEmail : signInWithEmail}
+          onPress={signInWithEmail}
           disabled={loading}
           activeOpacity={0.8}
         >
@@ -179,25 +149,10 @@ export default function Auth() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.mainButtonText}>
-              {isSignUp ? 'Crear cuenta' : 'Iniciar sesión'}
+              Iniciar sesión
             </Text>
           )}
         </TouchableOpacity>
-
-        {/* Toggle Sign Up / Sign In */}
-        <View style={styles.toggleContainer}>
-          <Text style={styles.toggleText}>
-            {isSignUp ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
-          </Text>
-          <TouchableOpacity
-            onPress={() => setIsSignUp(!isSignUp)}
-            disabled={loading}
-          >
-            <Text style={styles.toggleLink}>
-              {isSignUp ? 'Iniciar sesión' : 'Registrarse'}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   )
@@ -222,7 +177,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 20,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#111827',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -230,6 +185,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 8,
+  },
+  logoImage: {
+    width: 52,
+    height: 52,
   },
   title: {
     fontSize: 28,
@@ -307,21 +266,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 32,
-    gap: 4,
-  },
-  toggleText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  toggleLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
   },
 })

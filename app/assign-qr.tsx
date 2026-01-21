@@ -18,23 +18,32 @@ import {
 
 const { width } = Dimensions.get('window')
 const SCAN_AREA_SIZE = width * 0.7
+type CreatedWallet = {
+  id: string
+  name: string | null
+  phone: string | null
+  balance_cents: number
+}
 
 export default function AssignQrScreen() {
   const { currentOrg, currentEvent } = useAuthStore()
   const params = useLocalSearchParams<{
-    walletId: string
+    name: string
+    phone: string
     walletName: string
-    balanceCents: string
+    amountCents: string
   }>()
 
   const [permission, requestPermission] = useCameraPermissions()
   const [isScanning, setIsScanning] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [torch, setTorch] = useState(false)
+  const [createdWallet, setCreatedWallet] = useState<CreatedWallet | null>(null)
 
   const isProcessingRef = useRef(false)
 
-  const balanceCents = parseInt(params.balanceCents ?? '0')
+  const balanceCents = parseInt(params.amountCents ?? '0')
+  const walletLabel = params.walletName || params.name || params.phone || 'Nueva Wallet'
 
   useEffect(() => {
     return () => {
@@ -68,7 +77,7 @@ export default function AssignQrScreen() {
         return
       }
 
-      if (!currentOrg || !params.walletId) {
+      if (!currentOrg || !currentEvent) {
         Alert.alert('Error', 'Datos incompletos')
         setIsLoading(false)
         return
@@ -131,8 +140,8 @@ export default function AssignQrScreen() {
         return
       }
 
-      // Asignar el QR
-      await assignQrToWallet(qr.id, code5)
+      // Crear wallet y asignar el QR
+      await createWalletAndAssign(qr.id, code5)
     } catch (error: any) {
       Alert.alert(
         'Error',
@@ -149,15 +158,90 @@ export default function AssignQrScreen() {
     }
   }
 
-  const assignQrToWallet = async (qrId: string, code5: string) => {
+  const createWalletAndAssign = async (qrId: string, code5: string) => {
     setIsLoading(true)
     
     try {
+      if (!currentOrg || !currentEvent) {
+        throw new Error('Datos incompletos')
+      }
+
+      const name = params.name?.trim() || null
+      const phone = params.phone?.trim() || null
+      let wallet: CreatedWallet | null = createdWallet
+
+      if (!wallet) {
+        const { data: newWallet, error: walletError } = await (supabase
+          .from('wallets') as any)
+          .insert({
+            org_id: currentOrg.id,
+            event_id: currentEvent.id,
+            name,
+            phone,
+            balance_cents: balanceCents,
+            status: 'active',
+          })
+          .select()
+          .single()
+
+        if (walletError) {
+          console.error('Error creating wallet:', walletError)
+
+          if (walletError.code === '23505') {
+            Alert.alert(
+              'Error',
+              'Ya existe una wallet con este teléfono en esta organización',
+              [
+                {
+                  text: 'Editar datos',
+                  onPress: () => router.back(),
+                },
+                {
+                  text: 'Reintentar',
+                  onPress: () => {
+                    isProcessingRef.current = false
+                    setIsScanning(true)
+                  },
+                },
+              ]
+            )
+            setIsLoading(false)
+            return
+          }
+
+          throw walletError
+        }
+
+        wallet = newWallet
+        setCreatedWallet(newWallet)
+
+        if (balanceCents > 0) {
+          const { error: movementError } = await (supabase
+            .from('movements') as any)
+            .insert({
+              org_id: currentOrg.id,
+              wallet_id: newWallet.id,
+              event_id: currentEvent.id,
+              type: 'initial_deposit',
+              amount_cents: balanceCents,
+              notes: 'Depósito inicial al crear wallet',
+            })
+
+          if (movementError) {
+            console.error('Error creating initial deposit:', movementError)
+          }
+        }
+      }
+
+      if (!wallet) {
+        throw new Error('No se pudo crear la wallet')
+      }
+
       // Actualizar el QR con el wallet_id y cambiar status a 'assigned'
       const { error: updateError } = await (supabase
         .from('qrs') as any)
         .update({
-          wallet_id: params.walletId,
+          wallet_id: wallet.id,
           status: 'assigned',
         })
         .eq('id', qrId)
@@ -168,7 +252,7 @@ export default function AssignQrScreen() {
 
       Alert.alert(
         '¡Wallet Creada!',
-        `La wallet "${params.walletName}" ha sido creada y asociada al QR ${code5}.\n\nSaldo: ${formatCurrency(balanceCents)}`,
+        `La wallet "${walletLabel}" ha sido creada y asociada al QR ${code5}.\n\nSaldo: ${formatCurrency(balanceCents)}`,
         [
           {
             text: 'Crear Otra',
@@ -187,20 +271,6 @@ export default function AssignQrScreen() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleSkip = () => {
-    Alert.alert(
-      'Omitir Asignación',
-      'La wallet se creó pero no tendrá un QR asignado. Podrás asignarlo después.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Omitir',
-          onPress: () => router.dismissAll(),
-        },
-      ]
-    )
   }
 
   if (!permission) {
@@ -227,10 +297,10 @@ export default function AssignQrScreen() {
             <Text style={styles.permissionButtonText}>Permitir Cámara</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
+            style={styles.backButton}
+            onPress={() => router.back()}
           >
-            <Text style={styles.skipButtonText}>Omitir por ahora</Text>
+            <Text style={styles.backButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -255,14 +325,14 @@ export default function AssignQrScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={handleSkip}
+            onPress={() => router.back()}
           >
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Asignar QR</Text>
             <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {params.walletName}
+              {walletLabel}
             </Text>
           </View>
           <TouchableOpacity
@@ -307,9 +377,6 @@ export default function AssignQrScreen() {
           <Text style={styles.instructionsText}>
             Escanea el QR que deseas asignar a esta wallet
           </Text>
-          <TouchableOpacity style={styles.skipLinkButton} onPress={handleSkip}>
-            <Text style={styles.skipLinkText}>Omitir este paso</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -368,11 +435,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  skipButton: {
+  backButton: {
     paddingVertical: 12,
     marginTop: 8,
   },
-  skipButtonText: {
+  backButtonText: {
     fontSize: 14,
     color: '#6B7280',
   },
@@ -495,14 +562,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     textAlign: 'center',
-  },
-  skipLinkButton: {
-    marginTop: 16,
-    paddingVertical: 8,
-  },
-  skipLinkText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    textDecorationLine: 'underline',
   },
 })

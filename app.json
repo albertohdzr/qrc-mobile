@@ -1,48 +1,70 @@
 {
   "expo": {
-    "name": "qrc-app",
-    "slug": "qrc-app",
-    "version": "1.0.0",
+    "name": "QR-C by Type C",
+    "slug": "qrc-by-type-c",
+    "version": "2.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "qrcapp",
+    "icon": "assets/images/icon.png",
+    "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "splash": {
+      "image": "assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.team5526.qrc-by-type-c",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "This app uses Face ID to provide a secure and convenient way to log in to your account.",
+        "NSLocalAuthenticationUsageDescription": "This app uses Face ID/Touch ID to provide a secure and convenient way to log in to your account.",
+        "NSCameraUsageDescription": "We need camera access to scan QR codes for payments",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "userInterfaceStyle": "light",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
+      "versionCode": 1,
+      "package": "com.team5526.qrc_by_type_c",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#ffffff",
+      "barStyle": "dark-content"
+    },
+    "description": "Simplify event sales and payments with secure QR-based transactions. Perfect for managing purchases, digital wallets, and passes at events. Features include: Quick QR scanning for instant payments, secure digital wallet management, real-time transaction processing, easy pass and product management, Face ID/Touch ID security. Ideal for event organizers and vendors looking for a reliable point-of-sale solution.",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      "expo-router"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
+    },
+    "newArchEnabled": true,
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "6d347941-af5e-4f41-a401-86803caa960e"
+      }
     }
   }
 }

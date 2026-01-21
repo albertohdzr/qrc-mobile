@@ -2,22 +2,46 @@ import { formatCurrency, processPayment } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { CartItem, useCartStore } from '@/stores/cart-store'
-import { EventProduct, Product } from '@/types/database'
+import { EventArea, EventProduct, Product } from '@/types/database'
 import { Ionicons } from '@expo/vector-icons'
+import { Image } from 'expo-image'
 import { router } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native'
 
 interface ProductWithBase extends EventProduct {
   base_product: Product
+  event_area?: EventArea | null
+}
+
+const STORAGE_BUCKET = 'storage'
+
+const getProductImageUrl = (imagePath?: string | null) => {
+  const trimmed = imagePath?.trim()
+  if (!trimmed) return null
+
+  if (trimmed.startsWith('data:')) return trimmed
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+
+  const parts = trimmed.split('/')
+  if (parts.length >= 2) {
+    const bucketName = parts[0]
+    const filePath = parts.slice(1).join('/')
+    return supabase.storage.from(bucketName).getPublicUrl(filePath).data.publicUrl
+  }
+
+  return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(trimmed).data.publicUrl
 }
 
 export default function CheckoutScreen() {
@@ -39,8 +63,12 @@ export default function CheckoutScreen() {
   } = useCartStore()
 
   const [products, setProducts] = useState<ProductWithBase[]>([])
+  const [areas, setAreas] = useState<EventArea[]>([])
+  const [selectedArea, setSelectedArea] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isCartOpen, setIsCartOpen] = useState(false)
 
   useEffect(() => {
     if (!scannedCode5) {
@@ -55,18 +83,31 @@ export default function CheckoutScreen() {
 
     setIsLoadingProducts(true)
     try {
-      const { data, error } = await supabase
-        .from('event_products')
-        .select(`
-          *,
-          base_product:products(*)
-        `)
-        .eq('event_id', currentEvent.id)
-        .eq('org_id', currentOrg.id)
-        .eq('status', 'active')
+      const [{ data: areasData, error: areasError }, { data, error }] = await Promise.all([
+        supabase
+          .from('event_areas')
+          .select('*')
+          .eq('org_id', currentOrg.id)
+          .eq('event_id', currentEvent.id)
+          .order('name'),
+        supabase
+          .from('event_products')
+          .select(`
+            *,
+            base_product:products(*),
+            event_area:event_areas(*)
+          `)
+          .eq('event_id', currentEvent.id)
+          .eq('org_id', currentOrg.id)
+          .eq('status', 'active'),
+      ])
 
+      if (areasError) {
+        console.error('Error loading areas:', areasError)
+      }
       if (error) throw error
 
+      setAreas((areasData as EventArea[]) ?? [])
       setProducts((data as ProductWithBase[]) ?? [])
     } catch (error) {
       console.error('Error loading products:', error)
@@ -179,13 +220,41 @@ export default function CheckoutScreen() {
 
   const totalCents = getTotalCents()
   const remainingBalance = walletBalanceCents - totalCents
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const filteredProducts = products.filter((product) => {
+    if (selectedArea && product.area_id !== selectedArea) return false
+    if (!normalizedQuery) return true
+    const name = product.base_product.name?.toLowerCase() ?? ''
+    const description = product.base_product.description?.toLowerCase() ?? ''
+    return name.includes(normalizedQuery) || description.includes(normalizedQuery)
+  })
 
   const renderProduct = ({ item: product }: { item: ProductWithBase }) => {
     const cartItem = items.find(i => i.eventProduct.id === product.id)
     const quantity = cartItem?.quantity ?? 0
+    const imageUri = getProductImageUrl(product.base_product.image_path)
 
     return (
       <View style={styles.productCard}>
+        <View style={styles.productImageWrapper}>
+          {imageUri ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.productImage}
+              contentFit="cover"
+              transition={120}
+            />
+          ) : (
+            <View style={styles.productImagePlaceholder}>
+              <Ionicons name="image-outline" size={26} color="#9CA3AF" />
+            </View>
+          )}
+          {product.stock === 0 && (
+            <View style={styles.stockBadge}>
+              <Text style={styles.stockBadgeText}>Agotado</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={1}>
             {product.base_product.name}
@@ -197,6 +266,13 @@ export default function CheckoutScreen() {
             <Text style={styles.productStock}>
               Stock: {product.stock}
             </Text>
+          )}
+          {product.event_area?.name && (
+            <View style={styles.areaBadge}>
+              <Text style={styles.areaBadgeText} numberOfLines={1}>
+                {product.event_area.name}
+              </Text>
+            </View>
           )}
         </View>
         
@@ -276,91 +352,179 @@ export default function CheckoutScreen() {
 
       {/* Products */}
       <View style={styles.productsSection}>
-        <Text style={styles.sectionTitle}>Productos</Text>
+        <View style={styles.productsHeader}>
+          <Text style={styles.sectionTitle}>Productos</Text>
+          <View style={styles.resultsBadge}>
+            <Text style={styles.resultsBadgeText}>{filteredProducts.length}</Text>
+          </View>
+        </View>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={18} color="#9CA3AF" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por nombre o descripcion..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+        {areas.length > 0 && (
+          <View style={styles.areasContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.areasScroll}
+            >
+              <TouchableOpacity
+                style={[styles.areaChip, !selectedArea && styles.areaChipActive]}
+                onPress={() => setSelectedArea(null)}
+              >
+                <Text style={[styles.areaChipText, !selectedArea && styles.areaChipTextActive]}>
+                  Todos
+                </Text>
+              </TouchableOpacity>
+              {areas.map((area) => (
+                <TouchableOpacity
+                  key={area.id}
+                  style={[styles.areaChip, selectedArea === area.id && styles.areaChipActive]}
+                  onPress={() => setSelectedArea(area.id)}
+                >
+                  <Text style={[styles.areaChipText, selectedArea === area.id && styles.areaChipTextActive]}>
+                    {area.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
         {isLoadingProducts ? (
           <ActivityIndicator size="large" color="#1F2937" style={styles.loader} />
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <View style={styles.emptyProducts}>
             <Ionicons name="pricetag-outline" size={48} color="#D1D5DB" />
             <Text style={styles.emptyText}>No hay productos disponibles</Text>
           </View>
         ) : (
           <FlatList
-            data={products}
+            data={filteredProducts}
             renderItem={renderProduct}
             keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
+            numColumns={2}
+            showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.productsGrid}
+            columnWrapperStyle={styles.productsRow}
           />
         )}
       </View>
 
-      {/* Cart */}
-      <View style={styles.cartSection}>
-        <View style={styles.cartHeader}>
-          <Text style={styles.sectionTitle}>Carrito</Text>
-          {items.length > 0 && (
-            <TouchableOpacity onPress={clearCart}>
-              <Text style={styles.clearCartText}>Limpiar</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {items.length === 0 ? (
-          <View style={styles.emptyCart}>
-            <Text style={styles.emptyCartText}>
-              Agrega productos al carrito
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={items}
-            renderItem={renderCartItem}
-            keyExtractor={(item) => item.eventProduct.id}
-            style={styles.cartList}
-          />
-        )}
-      </View>
-
-      {/* Footer with totals */}
+      {/* Footer */}
       <View style={styles.footer}>
-        <View style={styles.totals}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Subtotal ({getItemCount()} items)</Text>
-            <Text style={styles.totalValue}>{formatCurrency(totalCents)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Saldo después del pago</Text>
-            <Text style={[
-              styles.totalValue,
-              remainingBalance < 0 && styles.insufficientBalance
-            ]}>
-              {formatCurrency(remainingBalance)}
-            </Text>
-          </View>
+        <View style={styles.footerSummary}>
+          <Text style={styles.footerLabel}>
+            Total ({getItemCount()} items)
+          </Text>
+          <Text style={styles.footerTotal}>
+            {formatCurrency(totalCents)}
+          </Text>
         </View>
-
         <TouchableOpacity
-          style={[
-            styles.payButton,
-            (items.length === 0 || !hasEnoughBalance() || isProcessing) && styles.payButtonDisabled,
-          ]}
-          onPress={handleProcessPayment}
-          disabled={items.length === 0 || !hasEnoughBalance() || isProcessing}
+          style={styles.reviewButton}
+          onPress={() => setIsCartOpen(true)}
+          activeOpacity={0.85}
         >
-          {isProcessing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="card" size={24} color="#fff" />
-              <Text style={styles.payButtonText}>
-                Cobrar {formatCurrency(totalCents)}
-              </Text>
-            </>
-          )}
+          <Ionicons name="cart" size={20} color="#fff" />
+          <Text style={styles.reviewButtonText}>Revisar carrito</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Cart Modal */}
+      <Modal
+        visible={isCartOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsCartOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Carrito</Text>
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setIsCartOpen(false)}
+              >
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              {items.length === 0 ? (
+                <View style={styles.emptyCart}>
+                  <Text style={styles.emptyCartText}>
+                    Agrega productos al carrito
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={items}
+                  renderItem={renderCartItem}
+                  keyExtractor={(item) => item.eventProduct.id}
+                  contentContainerStyle={styles.cartListContent}
+                />
+              )}
+            </View>
+
+            <View style={styles.modalFooter}>
+              <View style={styles.totals}>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Subtotal ({getItemCount()} items)</Text>
+                  <Text style={styles.totalValue}>{formatCurrency(totalCents)}</Text>
+                </View>
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Saldo después del pago</Text>
+                  <Text style={[
+                    styles.totalValue,
+                    remainingBalance < 0 && styles.insufficientBalance
+                  ]}>
+                    {formatCurrency(remainingBalance)}
+                  </Text>
+                </View>
+              </View>
+
+              {items.length > 0 && (
+                <TouchableOpacity onPress={clearCart} style={styles.clearCartButton}>
+                  <Text style={styles.clearCartText}>Limpiar carrito</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.payButton,
+                  (items.length === 0 || !hasEnoughBalance() || isProcessing) && styles.payButtonDisabled,
+                ]}
+                onPress={handleProcessPayment}
+                disabled={items.length === 0 || !hasEnoughBalance() || isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="card" size={24} color="#fff" />
+                    <Text style={styles.payButtonText}>
+                      Cobrar {formatCurrency(totalCents)}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -418,14 +582,75 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   productsSection: {
+    flex: 1,
     paddingTop: 16,
+  },
+  productsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  resultsBadge: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  resultsBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    paddingHorizontal: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 12,
+    height: 44,
+    marginHorizontal: 16,
     marginBottom: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
+  },
+  areasContainer: {
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  areasScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  areaChip: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  areaChipActive: {
+    backgroundColor: '#111827',
+  },
+  areaChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  areaChipTextActive: {
+    color: '#fff',
   },
   loader: {
     paddingVertical: 40,
@@ -441,18 +666,53 @@ const styles = StyleSheet.create({
   },
   productsGrid: {
     paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  productsRow: {
     gap: 12,
   },
   productCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 12,
-    width: 140,
+    padding: 10,
+    flex: 1,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  productImageWrapper: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 10,
+    backgroundColor: '#F3F4F6',
+    position: 'relative',
+  },
+  productImage: {
+    width: '100%',
+    height: 86,
+  },
+  productImagePlaceholder: {
+    width: '100%',
+    height: 86,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stockBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(220, 38, 38, 0.9)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  stockBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
   },
   productInfo: {
     marginBottom: 12,
@@ -472,6 +732,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9CA3AF',
     marginTop: 2,
+  },
+  areaBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  areaBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4F46E5',
   },
   quantityControls: {
     flexDirection: 'row',
@@ -497,20 +770,14 @@ const styles = StyleSheet.create({
     minWidth: 24,
     textAlign: 'center',
   },
-  cartSection: {
-    flex: 1,
-    marginTop: 16,
-  },
-  cartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingRight: 16,
-  },
   clearCartText: {
     fontSize: 14,
     color: '#DC2626',
     fontWeight: '500',
+  },
+  clearCartButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 12,
   },
   emptyCart: {
     flex: 1,
@@ -524,6 +791,10 @@ const styles = StyleSheet.create({
   cartList: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  cartListContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   cartItem: {
     flexDirection: 'row',
@@ -560,8 +831,37 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  footerSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  footerLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  footerTotal: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  reviewButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
   totals: {
     marginBottom: 16,
@@ -606,5 +906,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#F9FAFB',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    height: '85%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E5E7EB',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  modalBody: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    backgroundColor: '#fff',
   },
 })

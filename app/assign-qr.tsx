@@ -28,10 +28,12 @@ type CreatedWallet = {
 export default function AssignQrScreen() {
   const { currentOrg, currentEvent } = useAuthStore()
   const params = useLocalSearchParams<{
-    name: string
-    phone: string
-    walletName: string
-    amountCents: string
+    walletId?: string
+    walletName?: string
+    balanceCents?: string
+    name?: string
+    phone?: string
+    amountCents?: string
   }>()
 
   const [permission, requestPermission] = useCameraPermissions()
@@ -42,7 +44,10 @@ export default function AssignQrScreen() {
 
   const isProcessingRef = useRef(false)
 
-  const balanceCents = parseInt(params.amountCents ?? '0')
+  const isExistingWallet = Boolean(params.walletId)
+  const balanceCents = parseInt(
+    (isExistingWallet ? params.balanceCents : params.amountCents) ?? '0'
+  )
   const walletLabel = params.walletName || params.name || params.phone || 'Nueva Wallet'
 
   useEffect(() => {
@@ -77,7 +82,7 @@ export default function AssignQrScreen() {
         return
       }
 
-      if (!currentOrg || !currentEvent) {
+      if (!currentOrg || (!isExistingWallet && !currentEvent)) {
         Alert.alert('Error', 'Datos incompletos')
         setIsLoading(false)
         return
@@ -162,20 +167,30 @@ export default function AssignQrScreen() {
     setIsLoading(true)
     
     try {
-      if (!currentOrg || !currentEvent) {
+      if (!currentOrg) {
+        throw new Error('Datos incompletos')
+      }
+
+      if (!isExistingWallet && !currentEvent) {
         throw new Error('Datos incompletos')
       }
 
       const name = params.name?.trim() || null
       const phone = params.phone?.trim() || null
       let wallet: CreatedWallet | null = createdWallet
+      let walletId = params.walletId
 
-      if (!wallet) {
+      if (!wallet && !walletId) {
+        const event = currentEvent
+        if (!event) {
+          throw new Error('Datos incompletos')
+        }
+
         const { data: newWallet, error: walletError } = await (supabase
           .from('wallets') as any)
           .insert({
             org_id: currentOrg.id,
-            event_id: currentEvent.id,
+            event_id: event.id,
             name,
             phone,
             balance_cents: balanceCents,
@@ -213,6 +228,7 @@ export default function AssignQrScreen() {
         }
 
         wallet = newWallet
+        walletId = newWallet.id
         setCreatedWallet(newWallet)
 
         if (balanceCents > 0) {
@@ -221,7 +237,7 @@ export default function AssignQrScreen() {
             .insert({
               org_id: currentOrg.id,
               wallet_id: newWallet.id,
-              event_id: currentEvent.id,
+              event_id: event.id,
               type: 'initial_deposit',
               amount_cents: balanceCents,
               notes: 'Depósito inicial al crear wallet',
@@ -233,7 +249,7 @@ export default function AssignQrScreen() {
         }
       }
 
-      if (!wallet) {
+      if (!walletId) {
         throw new Error('No se pudo crear la wallet')
       }
 
@@ -241,7 +257,7 @@ export default function AssignQrScreen() {
       const { error: updateError } = await (supabase
         .from('qrs') as any)
         .update({
-          wallet_id: wallet.id,
+          wallet_id: walletId,
           status: 'assigned',
         })
         .eq('id', qrId)
@@ -250,20 +266,36 @@ export default function AssignQrScreen() {
         throw updateError
       }
 
-      Alert.alert(
-        '¡Wallet Creada!',
-        `La wallet "${walletLabel}" ha sido creada y asociada al QR ${code5}.\n\nSaldo: ${formatCurrency(balanceCents)}`,
-        [
-          {
-            text: 'Crear Otra',
-            onPress: () => router.replace('/create-wallet'),
-          },
-          {
-            text: 'Volver a Wallets',
-            onPress: () => router.dismissAll(),
-          },
-        ]
-      )
+      if (isExistingWallet) {
+        Alert.alert(
+          'QR Asignado',
+          `El QR ${code5} fue asignado a la wallet "${walletLabel}".`,
+          [
+            {
+              text: 'Volver',
+              onPress: () => router.back(),
+            },
+          ]
+        )
+      } else {
+        Alert.alert(
+          '¡Wallet Creada!',
+          `La wallet "${walletLabel}" ha sido creada y asociada al QR ${code5}.\n\nSaldo: ${formatCurrency(balanceCents)}`,
+          [
+            {
+              text: 'Crear Otra',
+              onPress: () => {
+                router.dismissAll()
+                setTimeout(() => router.push('/create-wallet'), 100)
+              },
+            },
+            {
+              text: 'Volver a Wallets',
+              onPress: () => router.dismissAll(),
+            },
+          ]
+        )
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'No se pudo asignar el QR')
       isProcessingRef.current = false

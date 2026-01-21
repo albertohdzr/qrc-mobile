@@ -76,11 +76,17 @@ export default function RechargeConfirmScreen() {
         [
           {
             text: 'Nueva Recarga',
-            onPress: () => router.replace('/(tabs)/recharge'),
+            onPress: () => {
+              router.dismissAll()
+              setTimeout(() => router.push('/(tabs)/recharge'), 100)
+            },
           },
           {
             text: 'Volver al Inicio',
-            onPress: () => router.replace('/(tabs)'),
+            onPress: () => {
+              router.dismissAll()
+              setTimeout(() => router.push('/(tabs)'), 100)
+            },
           },
         ]
       )

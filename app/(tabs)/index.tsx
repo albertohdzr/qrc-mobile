@@ -14,9 +14,11 @@ import { supabase } from '@/lib/supabase'
 import { EventArea } from '@/types/database'
 
 export default function POSScreen() {
-  const { currentOrg, currentEvent, canAccessFeature } = useAuthStore()
+  const { currentOrg, currentEvent, canAccessFeature, selectedAreaId, setSelectedAreaId } = useAuthStore()
   const [areas, setAreas] = useState<EventArea[]>([])
-  const [selectedArea, setSelectedArea] = useState<EventArea | null>(null)
+
+  // Derive the full area object from the stored ID
+  const selectedArea = areas.find(a => a.id === selectedAreaId) ?? null
 
   useFocusEffect(
     useCallback(() => {
@@ -37,10 +39,11 @@ export default function POSScreen() {
       .order('name')
 
     if (!error && data) {
-      setAreas(data)
-      // Auto-select first area if none selected
-      if (!selectedArea && data.length > 0) {
-        setSelectedArea(data[0])
+      const areasData = data as EventArea[]
+      setAreas(areasData)
+      // Auto-select first area if none selected or if current selection is no longer valid
+      if ((!selectedAreaId || !areasData.find(a => a.id === selectedAreaId)) && areasData.length > 0) {
+        setSelectedAreaId(areasData[0].id)
       }
     }
   }
@@ -116,7 +119,7 @@ export default function POSScreen() {
                       styles.areaChip,
                       selectedArea?.id === area.id && styles.areaChipActive,
                     ]}
-                    onPress={() => setSelectedArea(area)}
+                    onPress={() => setSelectedAreaId(area.id)}
                   >
                     <Text style={[
                       styles.areaChipText,

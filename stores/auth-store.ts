@@ -17,6 +17,9 @@ interface AuthState {
   events: Event[]
   currentEvent: Event | null
   
+  // POS context
+  selectedAreaId: string | null
+  
   // Loading states
   isLoading: boolean
   isInitialized: boolean
@@ -26,6 +29,7 @@ interface AuthState {
   loadUserData: () => Promise<void>
   setCurrentOrg: (org: Organization & { role: OrgRole }) => Promise<void>
   setCurrentEvent: (event: Event | null) => void
+  setSelectedAreaId: (areaId: string | null) => void
   signOut: () => Promise<void>
   reset: () => void
   
@@ -43,6 +47,7 @@ const initialState = {
   currentOrg: null,
   events: [],
   currentEvent: null,
+  selectedAreaId: null,
   isLoading: true,
   isInitialized: false,
 }
@@ -130,7 +135,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setCurrentOrg: async (org) => {
     const { session } = get()
     
-    set({ currentOrg: org, currentEvent: null, events: [] })
+    set({ currentOrg: org, currentEvent: null, events: [], selectedAreaId: null })
 
     // Update last_org_id in profile
     if (session?.user) {
@@ -157,7 +162,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setCurrentEvent: (event) => {
-    set({ currentEvent: event })
+    set({ currentEvent: event, selectedAreaId: null })
+  },
+
+  setSelectedAreaId: (areaId) => {
+    set({ selectedAreaId: areaId })
   },
 
   signOut: async () => {

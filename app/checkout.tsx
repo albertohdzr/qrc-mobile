@@ -45,7 +45,7 @@ const getProductImageUrl = (imagePath?: string | null) => {
 }
 
 export default function CheckoutScreen() {
-  const { currentOrg, currentEvent } = useAuthStore()
+  const { currentOrg, currentEvent, selectedAreaId } = useAuthStore()
   const {
     scannedCode5,
     walletName,
@@ -64,7 +64,7 @@ export default function CheckoutScreen() {
 
   const [products, setProducts] = useState<ProductWithBase[]>([])
   const [areas, setAreas] = useState<EventArea[]>([])
-  const [selectedArea, setSelectedArea] = useState<string | null>(null)
+  const [selectedArea, setSelectedArea] = useState<string | null>(selectedAreaId)
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)

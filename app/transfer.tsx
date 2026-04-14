@@ -35,7 +35,7 @@ interface WalletInfo {
 type Step = 'scan_origin' | 'scan_destination' | 'enter_amount' | 'confirm'
 
 export default function TransferScreen() {
-  const { currentOrg, currentEvent } = useAuthStore()
+  const { currentOrg, currentEvent, canAccessFeature } = useAuthStore()
   
   const [permission, requestPermission] = useCameraPermissions()
   const [step, setStep] = useState<Step>('scan_origin')
@@ -48,6 +48,25 @@ export default function TransferScreen() {
   const [amount, setAmount] = useState('')
   
   const isProcessingRef = useRef(false)
+
+  // Guard: only admin/owner can access transfers
+  if (!canAccessFeature('transfer')) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F9FAFB', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+        <Ionicons name="lock-closed-outline" size={64} color="#9CA3AF" />
+        <Text style={{ fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 }}>Acceso restringido</Text>
+        <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
+          Solo administradores pueden realizar transferencias
+        </Text>
+        <TouchableOpacity 
+          style={{ backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 24, paddingVertical: 12, marginTop: 24 }}
+          onPress={() => router.back()}
+        >
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Volver</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
 
   const amountCents = parseInt(amount || '0') * 100
 

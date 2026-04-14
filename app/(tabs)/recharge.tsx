@@ -15,9 +15,24 @@ import { useAuthStore } from '@/stores/auth-store'
 const QUICK_AMOUNTS = [100, 200, 500, 1000]
 
 export default function RechargeScreen() {
-  const { currentOrg, currentEvent } = useAuthStore()
+  const { currentOrg, currentEvent, canAccessFeature } = useAuthStore()
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null)
   const [customAmount, setCustomAmount] = useState('')
+
+  // Guard: only admin/owner can access recharge
+  if (!canAccessFeature('recharge')) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.emptyState}>
+          <Ionicons name="lock-closed-outline" size={64} color="#9CA3AF" />
+          <Text style={styles.emptyTitle}>Acceso restringido</Text>
+          <Text style={styles.emptySubtitle}>
+            Solo administradores pueden realizar recargas
+          </Text>
+        </View>
+      </View>
+    )
+  }
 
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount)

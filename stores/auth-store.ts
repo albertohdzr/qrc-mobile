@@ -32,7 +32,7 @@ interface AuthState {
   // Permission helpers
   isAdmin: () => boolean
   isCashier: () => boolean
-  canAccessFeature: (feature: 'pos' | 'wallets' | 'recharge' | 'settings' | 'refunds') => boolean
+  canAccessFeature: (feature: 'pos' | 'wallets' | 'recharge' | 'transfer' | 'settings' | 'refunds') => boolean
 }
 
 const initialState = {
@@ -188,14 +188,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     switch (feature) {
       case 'pos':
-        // Todos pueden usar POS
+        // Todos pueden usar POS (venta de artículos)
         return true
       case 'wallets':
         // Solo admin/owner pueden gestionar wallets (crear, editar)
         return role === 'owner' || role === 'admin'
       case 'recharge':
-        // Todos pueden recargar
-        return true
+        // Solo admin/owner pueden recargar saldo
+        return role === 'owner' || role === 'admin'
+      case 'transfer':
+        // Solo admin/owner pueden hacer transferencias
+        return role === 'owner' || role === 'admin'
       case 'settings':
         // Solo admin/owner
         return role === 'owner' || role === 'admin'

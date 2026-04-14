@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth-store'
 type IconName = keyof typeof Ionicons.glyphMap
 
 export default function TabLayout() {
-  const { isAdmin } = useAuthStore()
+  const { isAdmin, canAccessFeature } = useAuthStore()
   const showAdminTabs = isAdmin()
 
   return (
@@ -69,6 +69,7 @@ export default function TabLayout() {
         name="recharge"
         options={{
           title: 'Recarga',
+          href: canAccessFeature('recharge') ? '/recharge' : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? 'add-circle' : 'add-circle-outline'} 

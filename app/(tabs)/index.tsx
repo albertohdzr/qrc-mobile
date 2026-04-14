@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase'
 import { EventArea } from '@/types/database'
 
 export default function POSScreen() {
-  const { currentOrg, currentEvent } = useAuthStore()
+  const { currentOrg, currentEvent, canAccessFeature } = useAuthStore()
   const [areas, setAreas] = useState<EventArea[]>([])
   const [selectedArea, setSelectedArea] = useState<EventArea | null>(null)
 
@@ -160,15 +160,17 @@ export default function POSScreen() {
                 <Text style={styles.actionText}>Buscar Wallet</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.actionCard}
-                onPress={() => router.push('/transfer')}
-              >
-                <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="swap-horizontal-outline" size={24} color="#D97706" />
-                </View>
-                <Text style={styles.actionText}>Transferencia</Text>
-              </TouchableOpacity>
+              {canAccessFeature('transfer') && (
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => router.push('/transfer')}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
+                    <Ionicons name="swap-horizontal-outline" size={24} color="#D97706" />
+                  </View>
+                  <Text style={styles.actionText}>Transferencia</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity 
                 style={styles.actionCard}
@@ -180,15 +182,17 @@ export default function POSScreen() {
                 <Text style={styles.actionText}>Productos</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.actionCard}
-                onPress={() => {}}
-              >
-                <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
-                  <Ionicons name="refresh-outline" size={24} color="#DC2626" />
-                </View>
-                <Text style={styles.actionText}>Reembolso</Text>
-              </TouchableOpacity>
+              {canAccessFeature('refunds') && (
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => {}}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
+                    <Ionicons name="refresh-outline" size={24} color="#DC2626" />
+                  </View>
+                  <Text style={styles.actionText}>Reembolso</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 

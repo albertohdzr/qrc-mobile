@@ -162,6 +162,12 @@ export default function RootLayout() {
             headerShown: false,
           }} 
         />
+        <Stack.Screen 
+          name="qr-management" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

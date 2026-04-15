@@ -3,10 +3,14 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
@@ -14,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { OrgRole } from '@/types/database'
 
 type IconName = keyof typeof Ionicons.glyphMap
@@ -44,6 +49,18 @@ export default function TeamManagementScreen() {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+
+  // Add member modal state
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addForm, setAddForm] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    role: 'cashier' as OrgRole,
+  })
+  const [addLoading, setAddLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const fetchMembers = useCallback(async () => {
     if (!currentOrg) return
@@ -136,6 +153,102 @@ export default function TeamManagementScreen() {
       Alert.alert('Error', 'No se pudo cambiar el rol.')
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const resetAddForm = () => {
+    setAddForm({ email: '', password: '', firstName: '', lastName: '', role: 'cashier' })
+    setShowPassword(false)
+  }
+
+  const handleAddMember = async () => {
+    if (!currentOrg) return
+
+    const email = addForm.email.trim().toLowerCase()
+    const password = addForm.password
+    const firstName = addForm.firstName.trim()
+    const lastName = addForm.lastName.trim()
+
+    if (!email) return Alert.alert('Error', 'Ingresa un correo electrónico.')
+    if (!password || password.length < 6) return Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.')
+    if (!firstName) return Alert.alert('Error', 'Ingresa el nombre.')
+
+    setAddLoading(true)
+    try {
+      // Create a temporary Supabase client that won't affect the admin's session
+      const tempClient = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL!,
+        process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+          },
+        }
+      )
+
+      // 1. Sign up the new user
+      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+        email,
+        password,
+      })
+
+      if (signUpError) {
+        if (signUpError.message?.includes('already registered')) {
+          return Alert.alert('Error', 'Este correo ya está registrado. Puedes agregarlo directamente si ya tiene cuenta.')
+        }
+        if (signUpError.message?.includes('rate limit')) {
+          return Alert.alert(
+            'Límite de correos excedido',
+            'Supabase tiene un límite de correos de confirmación. Ve a Supabase Dashboard → Authentication → Settings y desactiva "Confirm email" para crear cuentas sin confirmación.'
+          )
+        }
+        throw signUpError
+      }
+
+      if (!signUpData?.user) {
+        throw new Error('No se pudo crear el usuario.')
+      }
+
+      const newUserId = signUpData.user.id
+
+      // 2. Create profile using temp client (has the new user's session)
+      if (signUpData.session) {
+        await (tempClient.from('profiles') as any).upsert({
+          user_id: newUserId,
+          first_name: firstName,
+          last_name: lastName || null,
+          email,
+        })
+      }
+
+      // 3. Add as org member using admin's main client
+      const { error: memberError } = await (supabase
+        .from('organization_members') as any)
+        .insert({
+          org_id: currentOrg.id,
+          user_id: newUserId,
+          role: addForm.role,
+        })
+
+      if (memberError) {
+        if (memberError.code === '23505') {
+          return Alert.alert('Error', 'Este usuario ya es miembro de la organización.')
+        }
+        throw memberError
+      }
+
+      // 4. Success — refresh list
+      Alert.alert('Éxito', `${firstName} ha sido agregado como ${ROLE_CONFIG[addForm.role].label}.`)
+      setShowAddModal(false)
+      resetAddForm()
+      fetchMembers()
+    } catch (err: any) {
+      console.error('Error adding member:', err)
+      Alert.alert('Error', err.message || 'No se pudo agregar al miembro.')
+    } finally {
+      setAddLoading(false)
     }
   }
 
@@ -353,6 +466,161 @@ export default function TeamManagementScreen() {
     )
   }
 
+  const renderAddMemberModal = () => (
+    <Modal
+      visible={showAddModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => { setShowAddModal(false); resetAddForm() }}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={() => { setShowAddModal(false); resetAddForm() }}
+        />
+        <View style={styles.addModalContent}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Agregar Miembro</Text>
+          <Text style={styles.modalSubtitle}>Crea una cuenta para un nuevo miembro del equipo</Text>
+
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Name Fields */}
+            <View style={styles.formRow}>
+              <View style={styles.formFieldHalf}>
+                <Text style={styles.formLabel}>Nombre *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="Juan"
+                  placeholderTextColor="#9CA3AF"
+                  value={addForm.firstName}
+                  onChangeText={t => setAddForm(prev => ({ ...prev, firstName: t }))}
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={styles.formFieldHalf}>
+                <Text style={styles.formLabel}>Apellido</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="Pérez"
+                  placeholderTextColor="#9CA3AF"
+                  value={addForm.lastName}
+                  onChangeText={t => setAddForm(prev => ({ ...prev, lastName: t }))}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+
+            {/* Email */}
+            <View style={styles.formField}>
+              <Text style={styles.formLabel}>Correo electrónico *</Text>
+              <View style={styles.formInputRow}>
+                <Ionicons name="mail-outline" size={18} color="#9CA3AF" />
+                <TextInput
+                  style={styles.formInputFlex}
+                  placeholder="correo@ejemplo.com"
+                  placeholderTextColor="#9CA3AF"
+                  value={addForm.email}
+                  onChangeText={t => setAddForm(prev => ({ ...prev, email: t }))}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            {/* Password */}
+            <View style={styles.formField}>
+              <Text style={styles.formLabel}>Contraseña *</Text>
+              <View style={styles.formInputRow}>
+                <Ionicons name="lock-closed-outline" size={18} color="#9CA3AF" />
+                <TextInput
+                  style={styles.formInputFlex}
+                  placeholder="Mínimo 6 caracteres"
+                  placeholderTextColor="#9CA3AF"
+                  value={addForm.password}
+                  onChangeText={t => setAddForm(prev => ({ ...prev, password: t }))}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(p => !p)}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#6B7280"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Role Selector */}
+            <View style={styles.formField}>
+              <Text style={styles.formLabel}>Rol *</Text>
+              <View style={styles.roleSelector}>
+                {(['admin', 'cashier'] as OrgRole[]).map(role => {
+                  const config = ROLE_CONFIG[role]
+                  const isSelected = addForm.role === role
+                  return (
+                    <TouchableOpacity
+                      key={role}
+                      style={[
+                        styles.roleSelectorItem,
+                        isSelected && { borderColor: config.text, backgroundColor: config.bg },
+                      ]}
+                      onPress={() => setAddForm(prev => ({ ...prev, role }))}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={config.icon}
+                        size={18}
+                        color={isSelected ? config.text : '#9CA3AF'}
+                      />
+                      <Text style={[
+                        styles.roleSelectorText,
+                        isSelected && { color: config.text, fontWeight: '700' },
+                      ]}>
+                        {config.label}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={[styles.addButton, addLoading && styles.addButtonDisabled]}
+              onPress={handleAddMember}
+              disabled={addLoading}
+              activeOpacity={0.8}
+            >
+              {addLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="person-add" size={18} color="#fff" />
+                  <Text style={styles.addButtonText}>Agregar Miembro</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => { setShowAddModal(false); resetAddForm() }}
+              disabled={addLoading}
+            >
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -364,6 +632,13 @@ export default function TeamManagementScreen() {
           <Text style={styles.headerTitle}>Equipo</Text>
           <Text style={styles.headerSubtitle}>{currentOrg.name}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.addMemberButton}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="person-add" size={18} color="#fff" />
+        </TouchableOpacity>
         <View style={styles.memberCountBadge}>
           <Text style={styles.memberCountText}>{members.length}</Text>
         </View>
@@ -395,6 +670,7 @@ export default function TeamManagementScreen() {
       )}
 
       {renderRoleModal()}
+      {renderAddMemberModal()}
     </View>
   )
 }
@@ -654,6 +930,105 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#6B7280',
+  },
+  // Add Member
+  addMemberButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    maxHeight: '85%',
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  formFieldHalf: {
+    flex: 1,
+  },
+  formField: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  formInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1F2937',
+  },
+  formInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  formInputFlex: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#1F2937',
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  roleSelectorItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  roleSelectorText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#4F46E5',
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  addButtonDisabled: {
+    opacity: 0.7,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
   // States
   loadingContainer: {

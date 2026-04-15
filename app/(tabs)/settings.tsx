@@ -1,15 +1,15 @@
-import React from 'react'
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-} from 'react-native'
+import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
-import { useAuthStore } from '@/stores/auth-store'
+import React from 'react'
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -201,7 +201,7 @@ export default function SettingsScreen() {
       </TouchableOpacity>
 
       {/* Version */}
-      <Text style={styles.versionText}>Versión 1.0.0</Text>
+      <Text style={styles.versionText}>Versión 2.0.0</Text>
     </ScrollView>
   )
 }

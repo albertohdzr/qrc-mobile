@@ -96,7 +96,7 @@ export default function SettingsScreen() {
       iconBg: '#CFFAFE',
       title: 'Equipo',
       subtitle: 'Gestionar miembros',
-      onPress: () => {},
+      onPress: () => router.push('/team-management'),
       adminOnly: true,
     },
     {
@@ -106,7 +106,7 @@ export default function SettingsScreen() {
       iconBg: '#FFEDD5',
       title: 'Reportes',
       subtitle: 'Ver estadísticas',
-      onPress: () => {},
+      onPress: () => router.push('/event-report'),
       adminOnly: true,
     },
   ]

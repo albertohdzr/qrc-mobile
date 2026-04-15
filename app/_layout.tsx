@@ -150,6 +150,18 @@ export default function RootLayout() {
             headerStyle: { backgroundColor: '#F9FAFB' },
           }} 
         />
+        <Stack.Screen 
+          name="team-management" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="event-report" 
+          options={{ 
+            headerShown: false,
+          }} 
+        />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

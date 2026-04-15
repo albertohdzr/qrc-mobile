@@ -18,10 +18,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
 import { OrgRole } from '@/types/database'
 
 type IconName = keyof typeof Ionicons.glyphMap
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || ''
 
 interface TeamMember {
   user_id: string
@@ -39,6 +40,26 @@ const ROLE_CONFIG: Record<OrgRole, { label: string; icon: IconName; bg: string; 
   owner: { label: 'Propietario', icon: 'shield', bg: '#FEF3C7', text: '#D97706', order: 0 },
   admin: { label: 'Administrador', icon: 'shield-half', bg: '#EEF2FF', text: '#4F46E5', order: 1 },
   cashier: { label: 'Cajero', icon: 'person', bg: '#D1FAE5', text: '#059669', order: 2 },
+}
+
+// ── API helper ──────────────────────────────────────────────
+
+async function callUsersApi(body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('No autorizado. Inicia sesión de nuevo.')
+
+  const res = await fetch(`${API_URL}/api/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error del servidor.')
+  return data
 }
 
 export default function TeamManagementScreen() {
@@ -133,13 +154,12 @@ export default function TeamManagementScreen() {
 
     setActionLoading(true)
     try {
-      const { error } = await (supabase
-        .from('organization_members') as any)
-        .update({ role: newRole })
-        .eq('org_id', currentOrg.id)
-        .eq('user_id', selectedMember.user_id)
-
-      if (error) throw error
+      await callUsersApi({
+        action: 'update_member',
+        orgId: currentOrg.id,
+        userId: selectedMember.user_id,
+        role: newRole,
+      })
 
       setMembers(prev =>
         prev.map(m =>
@@ -148,9 +168,9 @@ export default function TeamManagementScreen() {
       )
       setShowRoleModal(false)
       setSelectedMember(null)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating role:', err)
-      Alert.alert('Error', 'No se pudo cambiar el rol.')
+      Alert.alert('Error', err.message || 'No se pudo cambiar el rol.')
     } finally {
       setActionLoading(false)
     }
@@ -175,71 +195,16 @@ export default function TeamManagementScreen() {
 
     setAddLoading(true)
     try {
-      // Create a temporary Supabase client that won't affect the admin's session
-      const tempClient = createClient(
-        process.env.EXPO_PUBLIC_SUPABASE_URL!,
-        process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-        {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false,
-          },
-        }
-      )
-
-      // 1. Sign up the new user
-      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+      await callUsersApi({
+        action: 'create_single',
+        orgId: currentOrg.id,
         email,
         password,
+        firstName,
+        lastName: lastName || undefined,
+        role: addForm.role,
       })
 
-      if (signUpError) {
-        if (signUpError.message?.includes('already registered')) {
-          return Alert.alert('Error', 'Este correo ya está registrado. Puedes agregarlo directamente si ya tiene cuenta.')
-        }
-        if (signUpError.message?.includes('rate limit')) {
-          return Alert.alert(
-            'Límite de correos excedido',
-            'Supabase tiene un límite de correos de confirmación. Ve a Supabase Dashboard → Authentication → Settings y desactiva "Confirm email" para crear cuentas sin confirmación.'
-          )
-        }
-        throw signUpError
-      }
-
-      if (!signUpData?.user) {
-        throw new Error('No se pudo crear el usuario.')
-      }
-
-      const newUserId = signUpData.user.id
-
-      // 2. Create profile using temp client (has the new user's session)
-      if (signUpData.session) {
-        await (tempClient.from('profiles') as any).upsert({
-          user_id: newUserId,
-          first_name: firstName,
-          last_name: lastName || null,
-          email,
-        })
-      }
-
-      // 3. Add as org member using admin's main client
-      const { error: memberError } = await (supabase
-        .from('organization_members') as any)
-        .insert({
-          org_id: currentOrg.id,
-          user_id: newUserId,
-          role: addForm.role,
-        })
-
-      if (memberError) {
-        if (memberError.code === '23505') {
-          return Alert.alert('Error', 'Este usuario ya es miembro de la organización.')
-        }
-        throw memberError
-      }
-
-      // 4. Success — refresh list
       Alert.alert('Éxito', `${firstName} ha sido agregado como ${ROLE_CONFIG[addForm.role].label}.`)
       setShowAddModal(false)
       resetAddForm()
@@ -265,22 +230,21 @@ export default function TeamManagementScreen() {
           onPress: async () => {
             if (!currentOrg) return
             try {
-              const { error } = await (supabase
-                .from('organization_members') as any)
-                .update({ disabled: !member.disabled })
-                .eq('org_id', currentOrg.id)
-                .eq('user_id', member.user_id)
-
-              if (error) throw error
+              await callUsersApi({
+                action: 'update_member',
+                orgId: currentOrg.id,
+                userId: member.user_id,
+                disabled: !member.disabled,
+              })
 
               setMembers(prev =>
                 prev.map(m =>
                   m.user_id === member.user_id ? { ...m, disabled: !member.disabled } : m
                 )
               )
-            } catch (err) {
+            } catch (err: any) {
               console.error('Error toggling member:', err)
-              Alert.alert('Error', `No se pudo ${action} al miembro.`)
+              Alert.alert('Error', err.message || `No se pudo ${action} al miembro.`)
             }
           },
         },

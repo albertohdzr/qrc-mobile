@@ -152,7 +152,7 @@ export default function EventReportScreen() {
     try {
       const { data, error } = await supabase.rpc('get_event_report', {
         p_event_id: eventId,
-      })
+      } as any)
 
       if (error) throw error
       setReport(data as EventReport)

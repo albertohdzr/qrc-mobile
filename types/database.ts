@@ -1,3 +1,11 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export type OrgRole = 'owner' | 'admin' | 'cashier'
 export type WalletStatus = 'active' | 'blocked'
 export type QrStatus = 'available' | 'assigned' | 'inactive'
@@ -267,7 +275,12 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_event_report: {
+        Args: {
+          p_event_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       org_role: OrgRole

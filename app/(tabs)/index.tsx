@@ -175,6 +175,15 @@ export default function POSScreen() {
                 </TouchableOpacity>
               )}
 
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('/event-products')}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
+                  <Ionicons name="pricetag-outline" size={24} color="#059669" />
+                </View>
+                <Text style={styles.actionText}>Productos</Text>
+              </TouchableOpacity>
 
 
               {canAccessFeature('refunds') && (

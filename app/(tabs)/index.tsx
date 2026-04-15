@@ -189,7 +189,7 @@ export default function POSScreen() {
               {canAccessFeature('refunds') && (
                 <TouchableOpacity 
                   style={styles.actionCard}
-                  onPress={() => {}}
+                  onPress={() => router.push('/refund-scanner')}
                 >
                   <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
                     <Ionicons name="refresh-outline" size={24} color="#DC2626" />

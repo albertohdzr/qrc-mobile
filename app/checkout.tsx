@@ -6,7 +6,7 @@ import { EventArea, EventProduct, Product } from '@/types/database'
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router } from 'expo-router'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -70,6 +70,14 @@ export default function CheckoutScreen() {
   const [products, setProducts] = useState<ProductWithBase[]>([])
   const [areas, setAreas] = useState<EventArea[]>([])
   const [selectedArea, setSelectedArea] = useState<string | null>(selectedAreaId)
+
+  // Sort areas so the selected one is always first (visible in the slider)
+  const sortedAreas = useMemo(() => {
+    if (!selectedArea || areas.length === 0) return areas
+    const selected = areas.filter(a => a.id === selectedArea)
+    const rest = areas.filter(a => a.id !== selectedArea)
+    return [...selected, ...rest]
+  }, [areas, selectedArea])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -427,7 +435,7 @@ export default function CheckoutScreen() {
                   Todos
                 </Text>
               </TouchableOpacity>
-              {areas.map((area) => (
+              {sortedAreas.map((area) => (
                 <TouchableOpacity
                   key={area.id}
                   style={[styles.areaChip, selectedArea === area.id && styles.areaChipActive]}

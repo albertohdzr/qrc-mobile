@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   StyleSheet,
   View,
@@ -41,12 +41,22 @@ export default function POSScreen() {
     if (!error && data) {
       const areasData = data as EventArea[]
       setAreas(areasData)
-      // Auto-select first area if none selected or if current selection is no longer valid
-      if ((!selectedAreaId || !areasData.find(a => a.id === selectedAreaId)) && areasData.length > 0) {
+      // Read the current value directly from store (avoids stale closure)
+      const currentAreaId = useAuthStore.getState().selectedAreaId
+      // Auto-select first area ONLY if none selected or current is invalid
+      if ((!currentAreaId || !areasData.find(a => a.id === currentAreaId)) && areasData.length > 0) {
         setSelectedAreaId(areasData[0].id)
       }
     }
   }
+
+  // Sort areas so the selected one is always first (visible in the slider)
+  const sortedAreas = useMemo(() => {
+    if (!selectedAreaId || areas.length === 0) return areas
+    const selected = areas.filter(a => a.id === selectedAreaId)
+    const rest = areas.filter(a => a.id !== selectedAreaId)
+    return [...selected, ...rest]
+  }, [areas, selectedAreaId])
 
   const handleScanForSale = () => {
     if (selectedArea) {
@@ -112,7 +122,7 @@ export default function POSScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.areasContainer}
               >
-                {areas.map((area) => (
+                {sortedAreas.map((area) => (
                   <TouchableOpacity
                     key={area.id}
                     style={[

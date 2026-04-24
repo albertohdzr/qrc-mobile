@@ -209,22 +209,6 @@ export default function POSScreen() {
               )}
             </View>
           </View>
-
-          {/* Stats */}
-          <View style={styles.statsContainer}>
-            <Text style={styles.sectionTitle}>Resumen del Día</Text>
-            
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>$0.00</Text>
-                <Text style={styles.statLabel}>Total Ventas</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>0</Text>
-                <Text style={styles.statLabel}>Transacciones</Text>
-              </View>
-            </View>
-          </View>
         </ScrollView>
       )}
     </View>
@@ -390,33 +374,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#374151',
-  },
-  statsContainer: {
-    marginTop: 24,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  statLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 4,
   },
 })

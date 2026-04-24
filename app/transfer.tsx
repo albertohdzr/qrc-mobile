@@ -276,8 +276,9 @@ export default function TransferScreen() {
   if (step === 'enter_amount' || step === 'confirm') {
     return (
       <KeyboardAvoidingView 
-        style={styles.container} 
+        style={[styles.container, { backgroundColor: '#F9FAFB' }]} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
         <View style={styles.header}>
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
@@ -287,7 +288,12 @@ export default function TransferScreen() {
           <View style={styles.headerButton} />
         </View>
 
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+        >
           {/* Wallets summary */}
           <View style={styles.transferSummary}>
             {/* Origin */}
@@ -491,7 +497,7 @@ const styles = StyleSheet.create({
   instructionsTitle: { fontSize: 18, fontWeight: '600', color: '#fff', marginBottom: 4 },
   instructionsText: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
   content: { flex: 1, backgroundColor: '#F9FAFB' },
-  contentContainer: { padding: 16 },
+  contentContainer: { padding: 16, flexGrow: 1 },
   transferSummary: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   walletSummaryCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center' },
   walletLabel: { fontSize: 10, fontWeight: '600', color: '#9CA3AF', letterSpacing: 0.5 },

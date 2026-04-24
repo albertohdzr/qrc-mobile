@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
+import { t } from '@/lib/i18n'
 
 const QUICK_AMOUNTS = [100, 200, 500, 1000]
 
@@ -25,9 +26,9 @@ export default function RechargeScreen() {
       <View style={styles.container}>
         <View style={styles.emptyState}>
           <Ionicons name="lock-closed-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>Acceso restringido</Text>
+          <Text style={styles.emptyTitle}>{t('recharge.restrictedAccess')}</Text>
           <Text style={styles.emptySubtitle}>
-            Solo administradores pueden realizar recargas
+            {t('recharge.restrictedAccessMessage')}
           </Text>
         </View>
       </View>
@@ -57,7 +58,7 @@ export default function RechargeScreen() {
         >
           <Ionicons name="business-outline" size={18} color="#6B7280" />
           <Text style={styles.contextValue} numberOfLines={1}>
-            {currentOrg?.name ?? 'Seleccionar'}
+            {currentOrg?.name ?? t('common.select')}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
         </TouchableOpacity>
@@ -68,7 +69,7 @@ export default function RechargeScreen() {
         >
           <Ionicons name="calendar-outline" size={18} color="#6B7280" />
           <Text style={styles.contextValue} numberOfLines={1}>
-            {currentEvent?.name ?? 'Seleccionar'}
+            {currentEvent?.name ?? t('common.select')}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
         </TouchableOpacity>
@@ -77,9 +78,9 @@ export default function RechargeScreen() {
       {!currentOrg || !currentEvent ? (
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>Configuración requerida</Text>
+          <Text style={styles.emptyTitle}>{t('recharge.configRequired')}</Text>
           <Text style={styles.emptySubtitle}>
-            Selecciona una organización y un evento para realizar recargas
+            {t('recharge.configRequiredMessage')}
           </Text>
         </View>
       ) : (
@@ -98,7 +99,7 @@ export default function RechargeScreen() {
                   params: { amount: activeAmount.toString() },
                 })
               } else {
-                Alert.alert('Monto requerido', 'Selecciona un monto para continuar')
+                Alert.alert(t('recharge.amountRequired'), t('recharge.amountRequiredMessage'))
               }
             }}
           >
@@ -106,9 +107,9 @@ export default function RechargeScreen() {
               <Ionicons name="qr-code" size={32} color="#1F2937" />
             </View>
             <View style={styles.scanTextContainer}>
-              <Text style={styles.scanTitle}>Escanear Wallet</Text>
+              <Text style={styles.scanTitle}>{t('recharge.scanWallet')}</Text>
               <Text style={styles.scanSubtitle}>
-                Escanea el QR para identificar la wallet a recargar
+                {t('recharge.scanWalletSubtitle')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
@@ -116,7 +117,7 @@ export default function RechargeScreen() {
 
           {/* Amount Selection */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Monto a Recargar</Text>
+            <Text style={styles.sectionTitle}>{t('recharge.amountToRecharge')}</Text>
             
             <View style={styles.amountsGrid}>
               {QUICK_AMOUNTS.map((amount) => (
@@ -141,7 +142,7 @@ export default function RechargeScreen() {
             </View>
 
             <View style={styles.customAmountContainer}>
-              <Text style={styles.customAmountLabel}>Otro monto</Text>
+              <Text style={styles.customAmountLabel}>{t('recharge.otherAmount')}</Text>
               <View style={styles.customAmountInput}>
                 <Text style={styles.currencySymbol}>$</Text>
                 <TextInput

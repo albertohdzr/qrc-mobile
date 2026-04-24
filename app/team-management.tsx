@@ -19,6 +19,7 @@ import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
 import { OrgRole } from '@/types/database'
+import { t } from '@/lib/i18n'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -36,17 +37,17 @@ interface TeamMember {
   } | null
 }
 
-const ROLE_CONFIG: Record<OrgRole, { label: string; icon: IconName; bg: string; text: string; order: number }> = {
-  owner: { label: 'Propietario', icon: 'shield', bg: '#FEF3C7', text: '#D97706', order: 0 },
-  admin: { label: 'Administrador', icon: 'shield-half', bg: '#EEF2FF', text: '#4F46E5', order: 1 },
-  cashier: { label: 'Cajero', icon: 'person', bg: '#D1FAE5', text: '#059669', order: 2 },
-}
+const getRoleConfig = (): Record<OrgRole, { label: string; icon: IconName; bg: string; text: string; order: number }> => ({
+  owner: { label: t('team.owner'), icon: 'shield', bg: '#FEF3C7', text: '#D97706', order: 0 },
+  admin: { label: t('team.admin'), icon: 'shield-half', bg: '#EEF2FF', text: '#4F46E5', order: 1 },
+  cashier: { label: t('team.cashier'), icon: 'person', bg: '#D1FAE5', text: '#059669', order: 2 },
+})
 
 // ── API helper ──────────────────────────────────────────────
 
 async function callUsersApi(body: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error('No autorizado. Inicia sesión de nuevo.')
+  if (!session?.access_token) throw new Error(t('qrManagement.unauthorized'))
 
   const res = await fetch(`${API_URL}/api/users`, {
     method: 'POST',
@@ -58,12 +59,13 @@ async function callUsersApi(body: Record<string, unknown>) {
   })
 
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Error del servidor.')
+  if (!res.ok) throw new Error(data.error || t('qrManagement.serverError'))
   return data
 }
 
 export default function TeamManagementScreen() {
   const { currentOrg, user } = useAuthStore()
+  const ROLE_CONFIG = getRoleConfig()
   const [members, setMembers] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -133,7 +135,7 @@ export default function TeamManagementScreen() {
       setMembers(sorted)
     } catch (err) {
       console.error('Error fetching members:', err)
-      Alert.alert('Error', 'No se pudieron cargar los miembros del equipo.')
+      Alert.alert(t('common.error'), t('team.couldNotLoadMembers'))
     } finally {
       setIsLoading(false)
       setRefreshing(false)
@@ -170,7 +172,7 @@ export default function TeamManagementScreen() {
       setSelectedMember(null)
     } catch (err: any) {
       console.error('Error updating role:', err)
-      Alert.alert('Error', err.message || 'No se pudo cambiar el rol.')
+      Alert.alert(t('common.error'), err.message || t('team.couldNotChangeRole'))
     } finally {
       setActionLoading(false)
     }
@@ -189,9 +191,9 @@ export default function TeamManagementScreen() {
     const firstName = addForm.firstName.trim()
     const lastName = addForm.lastName.trim()
 
-    if (!email) return Alert.alert('Error', 'Ingresa un correo electrónico.')
-    if (!password || password.length < 6) return Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres.')
-    if (!firstName) return Alert.alert('Error', 'Ingresa el nombre.')
+    if (!email) return Alert.alert(t('common.error'), t('team.enterEmail'))
+    if (!password || password.length < 6) return Alert.alert(t('common.error'), t('team.passwordMinLength'))
+    if (!firstName) return Alert.alert(t('common.error'), t('team.enterFirstName'))
 
     setAddLoading(true)
     try {
@@ -205,27 +207,27 @@ export default function TeamManagementScreen() {
         role: addForm.role,
       })
 
-      Alert.alert('Éxito', `${firstName} ha sido agregado como ${ROLE_CONFIG[addForm.role].label}.`)
+      Alert.alert(t('qrManagement.success'), t('team.addSuccess', { name: firstName, role: ROLE_CONFIG[addForm.role].label }))
       setShowAddModal(false)
       resetAddForm()
       fetchMembers()
     } catch (err: any) {
       console.error('Error adding member:', err)
-      Alert.alert('Error', err.message || 'No se pudo agregar al miembro.')
+      Alert.alert(t('common.error'), err.message || t('team.couldNotAdd'))
     } finally {
       setAddLoading(false)
     }
   }
 
   const handleToggleDisabled = (member: TeamMember) => {
-    const action = member.disabled ? 'activar' : 'desactivar'
+    const action = member.disabled ? t('team.activate').toLowerCase() : t('team.deactivate').toLowerCase()
     Alert.alert(
-      `${member.disabled ? 'Activar' : 'Desactivar'} miembro`,
-      `¿Estás seguro de que quieres ${action} a ${getMemberName(member)}?`,
+      member.disabled ? t('team.activateMember') : t('team.deactivateMember'),
+      t('team.confirmToggle', { action, name: getMemberName(member) }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: member.disabled ? 'Activar' : 'Desactivar',
+          text: member.disabled ? t('team.activate') : t('team.deactivate'),
           style: member.disabled ? 'default' : 'destructive',
           onPress: async () => {
             if (!currentOrg) return
@@ -244,7 +246,7 @@ export default function TeamManagementScreen() {
               )
             } catch (err: any) {
               console.error('Error toggling member:', err)
-              Alert.alert('Error', err.message || `No se pudo ${action} al miembro.`)
+              Alert.alert(t('common.error'), err.message || t('team.couldNotToggle', { action }))
             }
           },
         },
@@ -256,7 +258,7 @@ export default function TeamManagementScreen() {
     if (member.profile?.first_name && member.profile?.last_name) {
       return `${member.profile.first_name} ${member.profile.last_name}`
     }
-    return member.profile?.email ?? 'Usuario'
+    return member.profile?.email ?? t('common.user')
   }
 
   const getInitials = (member: TeamMember): string => {
@@ -292,7 +294,7 @@ export default function TeamManagementScreen() {
               </Text>
               {isCurrentUser(item) && (
                 <View style={styles.youBadge}>
-                  <Text style={styles.youBadgeText}>Tú</Text>
+                  <Text style={styles.youBadgeText}>{t('team.you')}</Text>
                 </View>
               )}
             </View>
@@ -313,7 +315,7 @@ export default function TeamManagementScreen() {
               {item.disabled && (
                 <View style={styles.disabledBadge}>
                   <Ionicons name="close-circle" size={12} color="#DC2626" />
-                  <Text style={styles.disabledBadgeText}>Desactivado</Text>
+                  <Text style={styles.disabledBadgeText}>{t('team.disabled')}</Text>
                 </View>
               )}
             </View>
@@ -331,7 +333,7 @@ export default function TeamManagementScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="swap-horizontal" size={16} color="#4F46E5" />
-              <Text style={styles.actionButtonText}>Cambiar Rol</Text>
+              <Text style={styles.actionButtonText}>{t('team.changeRole')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.actionButton, item.disabled ? styles.actionButtonActivate : styles.actionButtonDeactivate]}
@@ -347,7 +349,7 @@ export default function TeamManagementScreen() {
                 styles.actionButtonText,
                 { color: item.disabled ? '#059669' : '#DC2626' },
               ]}>
-                {item.disabled ? 'Activar' : 'Desactivar'}
+                {item.disabled ? t('team.activate') : t('team.deactivate')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -370,7 +372,7 @@ export default function TeamManagementScreen() {
       >
         <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Cambiar Rol</Text>
+          <Text style={styles.modalTitle}>{t('team.changeRole')}</Text>
           <Text style={styles.modalSubtitle}>
             {selectedMember ? getMemberName(selectedMember) : ''}
           </Text>
@@ -395,8 +397,8 @@ export default function TeamManagementScreen() {
                   </Text>
                   <Text style={styles.roleOptionDescription}>
                     {role === 'admin'
-                      ? 'Acceso total excepto transferir propiedad'
-                      : 'Solo puede cobrar en punto de venta'}
+                      ? t('team.adminDescription')
+                      : t('team.cashierDescription')}
                   </Text>
                 </View>
                 {isSelected && (
@@ -413,7 +415,7 @@ export default function TeamManagementScreen() {
             style={styles.modalCancelButton}
             onPress={() => setShowRoleModal(false)}
           >
-            <Text style={styles.modalCancelText}>Cancelar</Text>
+            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -424,8 +426,8 @@ export default function TeamManagementScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="business-outline" size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Sin organización</Text>
-        <Text style={styles.emptySubtitle}>Selecciona una organización primero</Text>
+        <Text style={styles.emptyTitle}>{t('team.noOrg')}</Text>
+        <Text style={styles.emptySubtitle}>{t('team.noOrgMessage')}</Text>
       </View>
     )
   }
@@ -448,14 +450,14 @@ export default function TeamManagementScreen() {
         />
         <View style={styles.addModalContent}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Agregar Miembro</Text>
-          <Text style={styles.modalSubtitle}>Crea una cuenta para un nuevo miembro del equipo</Text>
+          <Text style={styles.modalTitle}>{t('team.addMember')}</Text>
+          <Text style={styles.modalSubtitle}>{t('team.addMemberSubtitle')}</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Name Fields */}
             <View style={styles.formRow}>
               <View style={styles.formFieldHalf}>
-                <Text style={styles.formLabel}>Nombre *</Text>
+                <Text style={styles.formLabel}>{t('team.firstName')}</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="Juan"
@@ -466,7 +468,7 @@ export default function TeamManagementScreen() {
                 />
               </View>
               <View style={styles.formFieldHalf}>
-                <Text style={styles.formLabel}>Apellido</Text>
+                <Text style={styles.formLabel}>{t('team.lastName')}</Text>
                 <TextInput
                   style={styles.formInput}
                   placeholder="Pérez"
@@ -480,12 +482,12 @@ export default function TeamManagementScreen() {
 
             {/* Email */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Correo electrónico *</Text>
+              <Text style={styles.formLabel}>{t('team.emailLabel')}</Text>
               <View style={styles.formInputRow}>
                 <Ionicons name="mail-outline" size={18} color="#9CA3AF" />
                 <TextInput
                   style={styles.formInputFlex}
-                  placeholder="correo@ejemplo.com"
+                  placeholder={t('team.emailPlaceholder')}
                   placeholderTextColor="#9CA3AF"
                   value={addForm.email}
                   onChangeText={t => setAddForm(prev => ({ ...prev, email: t }))}
@@ -498,12 +500,12 @@ export default function TeamManagementScreen() {
 
             {/* Password */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Contraseña *</Text>
+              <Text style={styles.formLabel}>{t('team.passwordLabel')}</Text>
               <View style={styles.formInputRow}>
                 <Ionicons name="lock-closed-outline" size={18} color="#9CA3AF" />
                 <TextInput
                   style={styles.formInputFlex}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={t('team.passwordPlaceholder')}
                   placeholderTextColor="#9CA3AF"
                   value={addForm.password}
                   onChangeText={t => setAddForm(prev => ({ ...prev, password: t }))}
@@ -523,7 +525,7 @@ export default function TeamManagementScreen() {
 
             {/* Role Selector */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Rol *</Text>
+              <Text style={styles.formLabel}>{t('team.role')}</Text>
               <View style={styles.roleSelector}>
                 {(['admin', 'cashier'] as OrgRole[]).map(role => {
                   const config = ROLE_CONFIG[role]
@@ -567,7 +569,7 @@ export default function TeamManagementScreen() {
               ) : (
                 <>
                   <Ionicons name="person-add" size={18} color="#fff" />
-                  <Text style={styles.addButtonText}>Agregar Miembro</Text>
+                  <Text style={styles.addButtonText}>{t('team.addButtonText')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -577,7 +579,7 @@ export default function TeamManagementScreen() {
               onPress={() => { setShowAddModal(false); resetAddForm() }}
               disabled={addLoading}
             >
-              <Text style={styles.modalCancelText}>Cancelar</Text>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -593,7 +595,7 @@ export default function TeamManagementScreen() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Equipo</Text>
+          <Text style={styles.headerTitle}>{t('team.title')}</Text>
           <Text style={styles.headerSubtitle}>{currentOrg.name}</Text>
         </View>
         <TouchableOpacity
@@ -611,7 +613,7 @@ export default function TeamManagementScreen() {
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Cargando equipo...</Text>
+          <Text style={styles.loadingText}>{t('team.loadingTeam')}</Text>
         </View>
       ) : (
         <FlatList
@@ -626,8 +628,8 @@ export default function TeamManagementScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="people-outline" size={64} color="#D1D5DB" />
-              <Text style={styles.emptyTitle}>Sin miembros</Text>
-              <Text style={styles.emptySubtitle}>No hay miembros en esta organización</Text>
+              <Text style={styles.emptyTitle}>{t('team.noMembers')}</Text>
+              <Text style={styles.emptySubtitle}>{t('team.noMembersMessage')}</Text>
             </View>
           }
         />

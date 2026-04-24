@@ -2,6 +2,8 @@ import { formatCurrency } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
+import i18n from '@/lib/i18n'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useState } from 'react'
 import {
@@ -47,7 +49,7 @@ interface PaymentMovement {
 
 async function callRefundApi(walletId: string, body: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error('No autorizado. Inicia sesión de nuevo.')
+  if (!session?.access_token) throw new Error(t('qrManagement.unauthorized'))
 
   const res = await fetch(`${API_URL}/api/wallets/${walletId}/refunds`, {
     method: 'POST',
@@ -59,7 +61,7 @@ async function callRefundApi(walletId: string, body: Record<string, unknown>) {
   })
 
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Error del servidor.')
+  if (!res.ok) throw new Error(data.error || t('qrManagement.serverError'))
   return data
 }
 
@@ -159,7 +161,7 @@ export default function RefundScreen() {
       setPayments(mapped)
     } catch (err) {
       console.error('Error loading payments:', err)
-      Alert.alert('Error', 'No se pudieron cargar las transacciones.')
+      Alert.alert(t('common.error'), t('refundScreen.couldNotLoadTransactions'))
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -274,7 +276,7 @@ export default function RefundScreen() {
   const handleRefund = async () => {
     if (!walletId || !selectedPaymentId || !hasSelection) return
     if (reason.trim().length < 3) {
-      return Alert.alert('Error', 'La razón debe tener al menos 3 caracteres.')
+      return Alert.alert(t('common.error'), t('refundScreen.reasonMinLength'))
     }
 
     setIsProcessing(true)
@@ -286,17 +288,17 @@ export default function RefundScreen() {
       })
 
       Alert.alert(
-        '¡Reembolso Exitoso!',
-        `Se reembolsaron ${formatCurrency(result.refundedCents ?? totalRefundCents)}.\n\nNuevo saldo: ${formatCurrency(result.newBalanceCents ?? (walletBalance + totalRefundCents))}`,
+        t('refundScreen.refundSuccess'),
+        `${t('refundScreen.refundButton', { amount: '' })} ${formatCurrency(result.refundedCents ?? totalRefundCents)}.\n\n${t('recharge.newBalance')}: ${formatCurrency(result.newBalanceCents ?? (walletBalance + totalRefundCents))}`,
         [
           {
-            text: 'Nuevo Reembolso',
+            text: t('refundScreen.newRefund'),
             onPress: () => {
               router.replace('/refund-scanner')
             },
           },
           {
-            text: 'Volver al Inicio',
+            text: t('refundScreen.goHome'),
             onPress: () => {
               router.dismissAll()
             },
@@ -305,7 +307,7 @@ export default function RefundScreen() {
       )
     } catch (err: any) {
       console.error('Error processing refund:', err)
-      Alert.alert('Error', err.message || 'No se pudo procesar el reembolso.')
+      Alert.alert(t('common.error'), err.message || t('refundScreen.couldNotProcess'))
     } finally {
       setIsProcessing(false)
       setShowConfirm(false)
@@ -318,7 +320,7 @@ export default function RefundScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-MX', {
+    return date.toLocaleDateString(i18n.locale === 'es' ? 'es-MX' : 'en-US', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -367,13 +369,13 @@ export default function RefundScreen() {
             </Text>
             <Text style={styles.paymentDate}>{formatDate(payment.created_at)}</Text>
             <Text style={styles.paymentItemsPreview} numberOfLines={1}>
-              {payment.items.map(i => i.base_product?.name || 'Producto').join(', ')}
+              {payment.items.map(i => i.base_product?.name || t('refundScreen.product')).join(', ')}
             </Text>
           </View>
           <View style={styles.paymentRight}>
             {allFullyRefunded ? (
               <View style={styles.refundedBadge}>
-                <Text style={styles.refundedBadgeText}>Reembolsado</Text>
+                <Text style={styles.refundedBadgeText}>{t('refundScreen.refunded')}</Text>
               </View>
             ) : (
               <Ionicons
@@ -403,7 +405,7 @@ export default function RefundScreen() {
                 {someSelected && !allMaxSelected && <View style={styles.checkboxDash} />}
               </View>
               <Text style={styles.selectAllText}>
-                {allMaxSelected ? 'Deseleccionar todos' : 'Seleccionar todos (cantidad completa)'}
+                {allMaxSelected ? t('refundScreen.deselectAll') : t('refundScreen.selectAll')}
               </Text>
             </TouchableOpacity>
 
@@ -448,22 +450,22 @@ export default function RefundScreen() {
                   {/* Center: item info */}
                   <View style={styles.itemInfo}>
                     <Text style={[styles.itemName, isDisabled && styles.itemNameRefunded]} numberOfLines={1}>
-                      {item.base_product?.name || 'Producto'}
+                      {item.base_product?.name || t('refundScreen.product')}
                     </Text>
                     <Text style={styles.itemDetail}>
                       {item.quantity}x {formatCurrency(item.unit_price_cents)}
                       {refunded > 0 && !isFullyRefunded && (
-                        ` · ${refunded} ya reembolsado(s)`
+                        ` · ${t('refundScreen.alreadyRefunded', { refunded: refunded.toString() })}`
                       )}
                     </Text>
                     {isFullyRefunded && (
                       <Text style={styles.itemRefundedLabel}>
-                        {refunded}/{item.quantity} reembolsado(s)
+                        {t('refundScreen.refundedCount', { refunded: refunded.toString(), total: item.quantity.toString() })}
                       </Text>
                     )}
                     {isZeroPrice && !isFullyRefunded && (
                       <Text style={styles.itemRefundedLabel}>
-                        Incluido en pase — sin costo
+                        {t('refundScreen.passIncluded')}
                       </Text>
                     )}
                   </View>
@@ -538,22 +540,22 @@ export default function RefundScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.modalTitle}>Confirmar Reembolso</Text>
+            <Text style={styles.modalTitle}>{t('refundScreen.confirmRefund')}</Text>
 
             {/* Summary */}
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Wallet</Text>
+                <Text style={styles.summaryLabel}>{t('refundScreen.wallet')}</Text>
                 <Text style={styles.summaryValue}>{walletName || walletPhone || `QR: ${code5}`}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Items</Text>
+                <Text style={styles.summaryLabel}>{t('refundScreen.itemsLabel')}</Text>
                 <Text style={styles.summaryValue}>
-                  {selectedItemsList.reduce((sum, s) => sum + s.qty, 0)} unidad(es)
+                  {t('refundScreen.units', { count: selectedItemsList.reduce((sum, s) => sum + s.qty, 0).toString() })}
                 </Text>
               </View>
               <View style={[styles.summaryRow, styles.summaryRowTotal]}>
-                <Text style={styles.summaryTotalLabel}>Total a reembolsar</Text>
+                <Text style={styles.summaryTotalLabel}>{t('refundScreen.totalToRefund')}</Text>
                 <Text style={styles.summaryTotalValue}>{formatCurrency(totalRefundCents)}</Text>
               </View>
             </View>
@@ -562,17 +564,17 @@ export default function RefundScreen() {
             <View style={styles.summaryProducts}>
               {selectedItemsList.map(({ item, qty }) => (
                 <Text key={item.id} style={styles.summaryProductText}>
-                  • {qty}x {item.base_product?.name || 'Producto'} — {formatCurrency(item.unit_price_cents * qty)}
+                  • {qty}x {item.base_product?.name || t('refundScreen.product')} — {formatCurrency(item.unit_price_cents * qty)}
                 </Text>
               ))}
             </View>
 
             {/* Reason */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Razón del reembolso *</Text>
+              <Text style={styles.formLabel}>{t('refundScreen.refundReason')}</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="Ej: Producto no entregado"
+                placeholder={t('refundScreen.refundReasonPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={reason}
                 onChangeText={setReason}
@@ -593,7 +595,7 @@ export default function RefundScreen() {
               ) : (
                 <>
                   <Ionicons name="refresh" size={20} color="#fff" />
-                  <Text style={styles.confirmButtonText}>Reembolsar {formatCurrency(totalRefundCents)}</Text>
+                  <Text style={styles.confirmButtonText}>{t('refundScreen.refundAmount', { amount: formatCurrency(totalRefundCents) })}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -603,7 +605,7 @@ export default function RefundScreen() {
               onPress={() => setShowConfirm(false)}
               disabled={isProcessing}
             >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -623,7 +625,7 @@ export default function RefundScreen() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Reembolso</Text>
+          <Text style={styles.headerTitle}>{t('refundScreen.title')}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -638,7 +640,7 @@ export default function RefundScreen() {
             {walletName || walletPhone || `QR: ${code5}`}
           </Text>
           <Text style={styles.walletBalance}>
-            Saldo: {formatCurrency(walletBalance)}
+            {t('refundScreen.balance')}: {formatCurrency(walletBalance)}
           </Text>
         </View>
         <View style={styles.walletQrBadge}>
@@ -649,7 +651,7 @@ export default function RefundScreen() {
       {/* Section Header */}
       <View style={styles.sectionHeader}>
         <Ionicons name="receipt-outline" size={18} color="#374151" />
-        <Text style={styles.sectionTitle}>Transacciones de pago</Text>
+        <Text style={styles.sectionTitle}>{t('refundScreen.paymentTransactions')}</Text>
         <Text style={styles.sectionCount}>{payments.length}</Text>
       </View>
 
@@ -657,7 +659,7 @@ export default function RefundScreen() {
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#D97706" />
-          <Text style={styles.loadingText}>Cargando transacciones...</Text>
+          <Text style={styles.loadingText}>{t('refundScreen.loadingTransactions')}</Text>
         </View>
       ) : (
         <FlatList
@@ -676,8 +678,8 @@ export default function RefundScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="receipt-outline" size={56} color="#D1D5DB" />
-              <Text style={styles.emptyTitle}>Sin pagos</Text>
-              <Text style={styles.emptySubtitle}>Esta wallet no tiene transacciones de pago</Text>
+              <Text style={styles.emptyTitle}>{t('refundScreen.noPayments')}</Text>
+              <Text style={styles.emptySubtitle}>{t('refundScreen.noPaymentsMessage')}</Text>
             </View>
           }
         />
@@ -688,7 +690,7 @@ export default function RefundScreen() {
         <View style={styles.footer}>
           <View style={styles.footerInfo}>
             <Text style={styles.footerLabel}>
-              {selectedItemsList.reduce((s, e) => s + e.qty, 0)} unidad(es) seleccionadas
+              {t('refundScreen.unitsSelected', { count: selectedItemsList.reduce((s, e) => s + e.qty, 0).toString() })}
             </Text>
             <Text style={styles.footerAmount}>{formatCurrency(totalRefundCents)}</Text>
           </View>
@@ -699,12 +701,12 @@ export default function RefundScreen() {
               activeOpacity={0.8}
             >
               <Ionicons name="refresh" size={20} color="#fff" />
-              <Text style={styles.refundButtonText}>Reembolsar</Text>
+              <Text style={styles.refundButtonText}>{t('refundScreen.refundButton')}</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.warningBadge}>
               <Ionicons name="warning" size={16} color="#D97706" />
-              <Text style={styles.warningText}>Solo una transacción a la vez</Text>
+              <Text style={styles.warningText}>{t('refundScreen.oneTransactionAtATime')}</Text>
             </View>
           )}
         </View>

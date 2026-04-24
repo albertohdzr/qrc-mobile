@@ -15,6 +15,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/api'
 import { Wallet } from '@/types/database'
+import { t } from '@/lib/i18n'
 
 interface WalletWithQr extends Wallet {
   qrs: { code_5: string }[] | null
@@ -191,9 +192,9 @@ export default function WalletsScreen() {
     return (
       <View style={styles.noAccessContainer}>
         <Ionicons name="lock-closed-outline" size={64} color="#9CA3AF" />
-        <Text style={styles.noAccessTitle}>Acceso Restringido</Text>
+        <Text style={styles.noAccessTitle}>{t('wallets.restrictedAccess')}</Text>
         <Text style={styles.noAccessSubtitle}>
-          No tienes permisos para gestionar wallets
+          {t('wallets.restrictedAccessMessage')}
         </Text>
       </View>
     )
@@ -217,7 +218,7 @@ export default function WalletsScreen() {
         </View>
         <View style={styles.walletInfo}>
           <Text style={styles.walletName} numberOfLines={1}>
-            {item.name || item.phone || 'Sin nombre'}
+            {item.name || item.phone || t('common.noName')}
           </Text>
           <View style={styles.walletMeta}>
             {item.phone && (
@@ -234,7 +235,7 @@ export default function WalletsScreen() {
             )}
             {!qrCode && (
               <View style={[styles.metaItem, styles.noQrBadge]}>
-                <Text style={styles.noQrText}>Sin QR</Text>
+                <Text style={styles.noQrText}>{t('common.noQr')}</Text>
               </View>
             )}
           </View>
@@ -248,7 +249,7 @@ export default function WalletsScreen() {
           </Text>
           {item.status === 'blocked' && (
             <View style={styles.blockedBadge}>
-              <Text style={styles.blockedText}>Bloqueada</Text>
+              <Text style={styles.blockedText}>{t('wallets.blocked')}</Text>
             </View>
           )}
         </View>
@@ -262,7 +263,7 @@ export default function WalletsScreen() {
     return (
       <View style={styles.loadMoreContainer}>
         <ActivityIndicator size="small" color="#6B7280" />
-        <Text style={styles.loadMoreText}>Cargando más...</Text>
+        <Text style={styles.loadMoreText}>{t('common.loadingMore')}</Text>
       </View>
     )
   }
@@ -277,7 +278,7 @@ export default function WalletsScreen() {
         >
           <Ionicons name="business-outline" size={18} color="#6B7280" />
           <Text style={styles.contextValue} numberOfLines={1}>
-            {currentOrg?.name ?? 'Seleccionar'}
+            {currentOrg?.name ?? t('common.select')}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
         </TouchableOpacity>
@@ -288,7 +289,7 @@ export default function WalletsScreen() {
         >
           <Ionicons name="calendar-outline" size={18} color="#6B7280" />
           <Text style={styles.contextValue} numberOfLines={1}>
-            {currentEvent?.name ?? 'Seleccionar'}
+            {currentEvent?.name ?? t('common.select')}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
         </TouchableOpacity>
@@ -297,9 +298,9 @@ export default function WalletsScreen() {
       {!currentOrg || !currentEvent ? (
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>Configuración requerida</Text>
+          <Text style={styles.emptyTitle}>{t('wallets.configRequired')}</Text>
           <Text style={styles.emptySubtitle}>
-            Selecciona una organización y un evento para ver las wallets
+            {t('wallets.configRequiredMessage')}
           </Text>
         </View>
       ) : (
@@ -309,7 +310,7 @@ export default function WalletsScreen() {
             <Ionicons name="search-outline" size={20} color="#9CA3AF" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar por nombre, teléfono o QR..."
+              placeholder={t('wallets.searchPlaceholder')}
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={handleSearchChange}
@@ -328,18 +329,18 @@ export default function WalletsScreen() {
             onPress={() => router.push('/create-wallet')}
           >
             <Ionicons name="add-circle" size={24} color="#fff" />
-            <Text style={styles.createButtonText}>Crear Nueva Wallet</Text>
+            <Text style={styles.createButtonText}>{t('wallets.createNew')}</Text>
           </TouchableOpacity>
 
           {/* Stats */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{stats.activeCount}</Text>
-              <Text style={styles.statLabel}>Wallets Activas</Text>
+              <Text style={styles.statLabel}>{t('wallets.activeWallets')}</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{formatCurrency(stats.totalBalance)}</Text>
-              <Text style={styles.statLabel}>Balance Total</Text>
+              <Text style={styles.statLabel}>{t('wallets.totalBalance')}</Text>
             </View>
           </View>
 
@@ -350,10 +351,10 @@ export default function WalletsScreen() {
             <View style={styles.listEmptyState}>
               <Ionicons name="wallet-outline" size={48} color="#D1D5DB" />
               <Text style={styles.listEmptyText}>
-                {searchQuery ? 'No se encontraron wallets' : 'No hay wallets para este evento'}
+                {searchQuery ? t('wallets.noWalletsFound') : t('wallets.noWalletsForEvent')}
               </Text>
               <Text style={styles.listEmptySubtext}>
-                {searchQuery ? 'Intenta con otra búsqueda' : 'Crea una nueva wallet para comenzar'}
+                {searchQuery ? t('wallets.tryAnotherSearch') : t('wallets.createToStart')}
               </Text>
             </View>
           ) : (

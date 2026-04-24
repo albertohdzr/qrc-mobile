@@ -18,6 +18,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
+import { t } from '@/lib/i18n'
+import i18n from '@/lib/i18n'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -60,23 +62,23 @@ interface QrStats {
 
 // ── Label maps ───────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<QrStatus, { label: string; icon: IconName; bg: string; text: string }> = {
-  available: { label: 'Disponible', icon: 'checkmark-circle', bg: '#D1FAE5', text: '#059669' },
-  assigned: { label: 'Asignado', icon: 'link', bg: '#EEF2FF', text: '#4F46E5' },
-  inactive: { label: 'Inactivo', icon: 'close-circle', bg: '#FEE2E2', text: '#DC2626' },
-}
+const getStatusConfig = (): Record<QrStatus, { label: string; icon: IconName; bg: string; text: string }> => ({
+  available: { label: t('qrManagement.statusAvailable'), icon: 'checkmark-circle', bg: '#D1FAE5', text: '#059669' },
+  assigned: { label: t('qrManagement.statusAssigned'), icon: 'link', bg: '#EEF2FF', text: '#4F46E5' },
+  inactive: { label: t('qrManagement.statusInactive'), icon: 'close-circle', bg: '#FEE2E2', text: '#DC2626' },
+})
 
-const TYPE_CONFIG: Record<QrType, { label: string; icon: IconName }> = {
-  bracelet: { label: 'Pulsera', icon: 'watch-outline' },
-  card: { label: 'Tarjeta', icon: 'card-outline' },
-  digital: { label: 'Digital', icon: 'phone-portrait-outline' },
-}
+const getTypeConfig = (): Record<QrType, { label: string; icon: IconName }> => ({
+  bracelet: { label: t('qrManagement.typeBracelet'), icon: 'watch-outline' },
+  card: { label: t('qrManagement.typeCard'), icon: 'card-outline' },
+  digital: { label: t('qrManagement.typeDigital'), icon: 'phone-portrait-outline' },
+})
 
 // ── API helper ───────────────────────────────────────────────
 
 async function callBatchApi(body: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error('No autorizado. Inicia sesión de nuevo.')
+  if (!session?.access_token) throw new Error(t('qrManagement.unauthorized'))
 
   const res = await fetch(`${API_URL}/api/qr-batches`, {
     method: 'POST',
@@ -88,7 +90,7 @@ async function callBatchApi(body: Record<string, unknown>) {
   })
 
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Error del servidor.')
+  if (!res.ok) throw new Error(data.error || t('qrManagement.serverError'))
   return data
 }
 
@@ -187,7 +189,7 @@ export default function QrManagementScreen() {
       setQrPage(page)
     } catch (err) {
       console.error('Error fetching QRs:', err)
-      Alert.alert('Error', 'No se pudieron cargar los QRs.')
+      Alert.alert(t('common.error'), t('qrManagement.couldNotLoadQrs'))
     } finally {
       setQrsLoading(false)
       setQrsRefreshing(false)
@@ -215,7 +217,7 @@ export default function QrManagementScreen() {
       setBatches(mapped)
     } catch (err) {
       console.error('Error fetching batches:', err)
-      Alert.alert('Error', 'No se pudieron cargar los lotes.')
+      Alert.alert(t('common.error'), t('qrManagement.couldNotLoadBatches'))
     } finally {
       setBatchesLoading(false)
       setBatchesRefreshing(false)
@@ -252,8 +254,8 @@ export default function QrManagementScreen() {
     const name = batchForm.name.trim()
     const qty = parseInt(batchForm.quantity, 10)
 
-    if (!name) return Alert.alert('Error', 'Ingresa un nombre para el lote.')
-    if (!qty || qty < 1 || qty > 5000) return Alert.alert('Error', 'La cantidad debe ser entre 1 y 5000.')
+    if (!name) return Alert.alert(t('common.error'), t('qrManagement.batchNameRequired'))
+    if (!qty || qty < 1 || qty > 5000) return Alert.alert(t('common.error'), t('qrManagement.batchQtyError'))
 
     setCreateLoading(true)
     try {
@@ -267,7 +269,7 @@ export default function QrManagementScreen() {
         },
       })
 
-      Alert.alert('Éxito', `Se crearon ${result.created} QRs en el lote "${name}".`)
+      Alert.alert(t('qrManagement.success'), t('qrManagement.batchSuccess', { count: result.created.toString(), name }))
       setShowCreateBatch(false)
       resetBatchForm()
       fetchStats()
@@ -275,7 +277,7 @@ export default function QrManagementScreen() {
       if (activeTab === 'qrs') fetchQrs(0)
     } catch (err: any) {
       console.error('Error creating batch:', err)
-      Alert.alert('Error', err.message || 'No se pudo crear el lote.')
+      Alert.alert(t('common.error'), err.message || t('qrManagement.couldNotCreateBatch'))
     } finally {
       setCreateLoading(false)
     }
@@ -287,7 +289,7 @@ export default function QrManagementScreen() {
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return '—'
-    return new Intl.DateTimeFormat('es-MX', {
+    return new Intl.DateTimeFormat(i18n.locale === 'es' ? 'es-MX' : 'en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -305,6 +307,8 @@ export default function QrManagementScreen() {
   )
 
   const renderQrItem = ({ item }: { item: QrRecord }) => {
+    const STATUS_CONFIG = getStatusConfig()
+    const TYPE_CONFIG = getTypeConfig()
     const sc = STATUS_CONFIG[item.status]
     const tc = TYPE_CONFIG[item.type]
     return (
@@ -334,7 +338,7 @@ export default function QrManagementScreen() {
             <View style={styles.qrMeta}>
               <Ionicons name="wallet-outline" size={14} color="#6B7280" />
               <Text style={styles.qrMetaText} numberOfLines={1}>
-                {item.wallet.name || item.wallet.phone || 'Asignado'}
+                {item.wallet.name || item.wallet.phone || t('qrManagement.assignedLabel')}
               </Text>
             </View>
           )}
@@ -354,7 +358,7 @@ export default function QrManagementScreen() {
           {item.notes ? (
             <Text style={styles.batchNotes} numberOfLines={1}>{item.notes}</Text>
           ) : null}
-          <Text style={styles.batchDate}>Fabricación: {formatDate(item.manufactured_at)}</Text>
+          <Text style={styles.batchDate}>{t('qrManagement.manufacturing')}: {formatDate(item.manufactured_at)}</Text>
         </View>
         <View style={styles.batchCountContainer}>
           <Text style={styles.batchCountValue}>{item.qr_count}</Text>
@@ -405,16 +409,16 @@ export default function QrManagementScreen() {
         />
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Crear Lote de QRs</Text>
-          <Text style={styles.modalSubtitle}>Genera un lote nuevo con códigos QR únicos</Text>
+          <Text style={styles.modalTitle}>{t('qrManagement.createBatchTitle')}</Text>
+          <Text style={styles.modalSubtitle}>{t('qrManagement.createBatchSubtitle')}</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Batch Name */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Nombre del lote *</Text>
+              <Text style={styles.formLabel}>{t('qrManagement.batchName')}</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="Ej: Lote Evento Marzo"
+                placeholder={t('qrManagement.batchNamePlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={batchForm.name}
                 onChangeText={t => setBatchForm(prev => ({ ...prev, name: t }))}
@@ -424,10 +428,10 @@ export default function QrManagementScreen() {
 
             {/* Notes */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Notas</Text>
+              <Text style={styles.formLabel}>{t('qrManagement.notes')}</Text>
               <TextInput
                 style={[styles.formInput, { minHeight: 60 }]}
-                placeholder="Notas opcionales..."
+                placeholder={t('qrManagement.notesPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={batchForm.notes}
                 onChangeText={t => setBatchForm(prev => ({ ...prev, notes: t }))}
@@ -437,7 +441,7 @@ export default function QrManagementScreen() {
 
             {/* Quantity */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Cantidad de QRs *</Text>
+              <Text style={styles.formLabel}>{t('qrManagement.qrQuantity')}</Text>
               <TextInput
                 style={styles.formInput}
                 placeholder="100"
@@ -446,14 +450,15 @@ export default function QrManagementScreen() {
                 onChangeText={t => setBatchForm(prev => ({ ...prev, quantity: t.replace(/[^0-9]/g, '') }))}
                 keyboardType="number-pad"
               />
-              <Text style={styles.formHint}>Máximo 5,000 por lote</Text>
+              <Text style={styles.formHint}>{t('qrManagement.maxPerBatch')}</Text>
             </View>
 
             {/* Type Selector */}
             <View style={styles.formField}>
-              <Text style={styles.formLabel}>Tipo de QR *</Text>
+              <Text style={styles.formLabel}>{t('qrManagement.qrType')}</Text>
               <View style={styles.typeSelector}>
                 {(['bracelet', 'card', 'digital'] as QrType[]).map(type => {
+                  const TYPE_CONFIG = getTypeConfig()
                   const tc = TYPE_CONFIG[type]
                   const isSelected = batchForm.type === type
                   return (
@@ -495,7 +500,7 @@ export default function QrManagementScreen() {
               ) : (
                 <>
                   <Ionicons name="add-circle" size={20} color="#fff" />
-                  <Text style={styles.createButtonText}>Crear Lote</Text>
+                  <Text style={styles.createButtonText}>{t('qrManagement.createBatch')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -505,7 +510,7 @@ export default function QrManagementScreen() {
               onPress={() => { setShowCreateBatch(false); resetBatchForm() }}
               disabled={createLoading}
             >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -521,8 +526,8 @@ export default function QrManagementScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="business-outline" size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Sin organización</Text>
-        <Text style={styles.emptySubtitle}>Selecciona una organización primero</Text>
+        <Text style={styles.emptyTitle}>{t('qrManagement.noOrg')}</Text>
+        <Text style={styles.emptySubtitle}>{t('qrManagement.noOrgMessage')}</Text>
       </View>
     )
   }
@@ -535,7 +540,7 @@ export default function QrManagementScreen() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Códigos QR</Text>
+          <Text style={styles.headerTitle}>{t('qrManagement.title')}</Text>
           <Text style={styles.headerSubtitle}>{currentOrg.name}</Text>
         </View>
         <TouchableOpacity
@@ -553,10 +558,10 @@ export default function QrManagementScreen() {
           <ActivityIndicator size="small" color="#7C3AED" style={{ paddingVertical: 20 }} />
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll}>
-            {renderStatCard('Total', stats.total, 'qr-code', '#7C3AED')}
-            {renderStatCard('Disponibles', stats.available, 'checkmark-circle', '#059669')}
-            {renderStatCard('Asignados', stats.assigned, 'link', '#4F46E5')}
-            {renderStatCard('Inactivos', stats.inactive, 'close-circle', '#DC2626')}
+            {renderStatCard(t('qrManagement.total'), stats.total, 'qr-code', '#7C3AED')}
+            {renderStatCard(t('qrManagement.available'), stats.available, 'checkmark-circle', '#059669')}
+            {renderStatCard(t('qrManagement.assigned'), stats.assigned, 'link', '#4F46E5')}
+            {renderStatCard(t('qrManagement.inactive'), stats.inactive, 'close-circle', '#DC2626')}
           </ScrollView>
         )}
       </View>
@@ -568,14 +573,14 @@ export default function QrManagementScreen() {
           onPress={() => setActiveTab('qrs')}
         >
           <Ionicons name="qr-code-outline" size={16} color={activeTab === 'qrs' ? '#7C3AED' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'qrs' && styles.tabTextActive]}>Inventario</Text>
+          <Text style={[styles.tabText, activeTab === 'qrs' && styles.tabTextActive]}>{t('qrManagement.inventory')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'batches' && styles.tabActive]}
           onPress={() => setActiveTab('batches')}
         >
           <Ionicons name="layers-outline" size={16} color={activeTab === 'batches' ? '#7C3AED' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'batches' && styles.tabTextActive]}>Lotes</Text>
+          <Text style={[styles.tabText, activeTab === 'batches' && styles.tabTextActive]}>{t('qrManagement.batches')}</Text>
           {batches.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{batches.length}</Text>
@@ -591,7 +596,7 @@ export default function QrManagementScreen() {
           {qrsLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#7C3AED" />
-              <Text style={styles.loadingText}>Cargando QRs...</Text>
+              <Text style={styles.loadingText}>{t('qrManagement.loadingQrs')}</Text>
             </View>
           ) : (
             <FlatList
@@ -614,7 +619,7 @@ export default function QrManagementScreen() {
                     <Ionicons name="search" size={18} color="#9CA3AF" />
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="Buscar por código o key..."
+                      placeholder={t('qrManagement.searchPlaceholder')}
                       placeholderTextColor="#9CA3AF"
                       value={searchText}
                       onChangeText={setSearchText}
@@ -632,25 +637,25 @@ export default function QrManagementScreen() {
 
                   {/* Filters */}
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow} contentContainerStyle={styles.filtersContent}>
-                    {renderFilterChip('Todos', statusFilter === 'all', () => setStatusFilter('all'))}
-                    {renderFilterChip('Disponible', statusFilter === 'available', () => setStatusFilter('available'), '#059669')}
-                    {renderFilterChip('Asignado', statusFilter === 'assigned', () => setStatusFilter('assigned'), '#4F46E5')}
-                    {renderFilterChip('Inactivo', statusFilter === 'inactive', () => setStatusFilter('inactive'), '#DC2626')}
+                    {renderFilterChip(t('eventProducts.all'), statusFilter === 'all', () => setStatusFilter('all'))}
+                    {renderFilterChip(t('qrManagement.statusAvailable'), statusFilter === 'available', () => setStatusFilter('available'), '#059669')}
+                    {renderFilterChip(t('qrManagement.statusAssigned'), statusFilter === 'assigned', () => setStatusFilter('assigned'), '#4F46E5')}
+                    {renderFilterChip(t('qrManagement.statusInactive'), statusFilter === 'inactive', () => setStatusFilter('inactive'), '#DC2626')}
                     <View style={styles.filterDivider} />
-                    {renderFilterChip('Pulsera', typeFilter === 'bracelet', () => setTypeFilter(typeFilter === 'bracelet' ? 'all' : 'bracelet'), '#7C3AED')}
-                    {renderFilterChip('Tarjeta', typeFilter === 'card', () => setTypeFilter(typeFilter === 'card' ? 'all' : 'card'), '#7C3AED')}
-                    {renderFilterChip('Digital', typeFilter === 'digital', () => setTypeFilter(typeFilter === 'digital' ? 'all' : 'digital'), '#7C3AED')}
+                    {renderFilterChip(t('qrManagement.typeBracelet'), typeFilter === 'bracelet', () => setTypeFilter(typeFilter === 'bracelet' ? 'all' : 'bracelet'), '#7C3AED')}
+                    {renderFilterChip(t('qrManagement.typeCard'), typeFilter === 'card', () => setTypeFilter(typeFilter === 'card' ? 'all' : 'card'), '#7C3AED')}
+                    {renderFilterChip(t('qrManagement.typeDigital'), typeFilter === 'digital', () => setTypeFilter(typeFilter === 'digital' ? 'all' : 'digital'), '#7C3AED')}
                   </ScrollView>
                 </View>
               }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="qr-code-outline" size={56} color="#D1D5DB" />
-                  <Text style={styles.emptyTitle}>Sin QRs</Text>
+                  <Text style={styles.emptyTitle}>{t('qrManagement.noQrs')}</Text>
                   <Text style={styles.emptySubtitle}>
                     {searchText || statusFilter !== 'all' || typeFilter !== 'all'
-                      ? 'No se encontraron QRs con los filtros seleccionados'
-                      : 'Crea un lote para generar códigos QR'}
+                      ? t('qrManagement.noQrsFiltered')
+                      : t('qrManagement.createBatchToGenerate')}
                   </Text>
                 </View>
               }
@@ -701,19 +706,19 @@ export default function QrManagementScreen() {
             batchesLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#7C3AED" />
-                <Text style={styles.loadingText}>Cargando lotes...</Text>
+                <Text style={styles.loadingText}>{t('qrManagement.loadingBatches')}</Text>
               </View>
             ) : (
               <View style={styles.emptyContainer}>
                 <Ionicons name="layers-outline" size={56} color="#D1D5DB" />
-                <Text style={styles.emptyTitle}>Sin lotes</Text>
-                <Text style={styles.emptySubtitle}>Crea un lote para agrupar y controlar QRs</Text>
+                <Text style={styles.emptyTitle}>{t('qrManagement.noBatches')}</Text>
+                <Text style={styles.emptySubtitle}>{t('qrManagement.noBatchesMessage')}</Text>
                 <TouchableOpacity
                   style={[styles.createButton, { marginTop: 16, paddingHorizontal: 24 }]}
                   onPress={() => setShowCreateBatch(true)}
                 >
                   <Ionicons name="add-circle" size={18} color="#fff" />
-                  <Text style={styles.createButtonText}>Crear Lote</Text>
+                  <Text style={styles.createButtonText}>{t('qrManagement.createBatch')}</Text>
                 </TouchableOpacity>
               </View>
             )

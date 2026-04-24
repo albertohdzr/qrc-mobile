@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React, { useState } from 'react'
+import { t } from '@/lib/i18n'
 import {
   Alert,
   KeyboardAvoidingView,
@@ -40,26 +41,30 @@ export default function CreateWalletScreen() {
 
   const handleConfirmAndScan = () => {
     if (!currentOrg || !currentEvent) {
-      Alert.alert('Error', 'Selecciona una organización y evento primero')
+      Alert.alert(t('common.error'), t('createWallet.selectOrgAndEventFirst'))
       return
     }
 
     if (!name.trim() && !phone.trim()) {
-      Alert.alert('Datos requeridos', 'Ingresa al menos un nombre o teléfono')
+      Alert.alert(t('createWallet.dataRequired'), t('createWallet.dataRequiredMessage'))
       return
     }
 
     const trimmedName = name.trim()
     const trimmedPhone = phone.trim()
-    const walletLabel = trimmedName || trimmedPhone || 'Nueva Wallet'
+    const walletLabel = trimmedName || trimmedPhone || t('createWallet.newWallet')
 
     Alert.alert(
-      'Confirmar datos',
-      `Nombre: ${trimmedName || 'Sin nombre'}\nTeléfono: ${trimmedPhone || 'Sin teléfono'}\nTotal: ${formatCurrency(amountCents)}`,
+      t('createWallet.confirmData'),
+      t('createWallet.confirmDataMessage', {
+        name: trimmedName || t('createWallet.noNameFallback'),
+        phone: trimmedPhone || t('createWallet.noPhoneFallback'),
+        total: formatCurrency(amountCents),
+      }),
       [
-        { text: 'Editar', style: 'cancel' },
+        { text: t('common.edit'), style: 'cancel' },
         {
-          text: 'Continuar',
+          text: t('common.continue'),
           onPress: () => {
             router.push({
               pathname: '/assign-qr',
@@ -84,12 +89,12 @@ export default function CreateWalletScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />
-        <Text style={styles.emptyTitle}>Configuración requerida</Text>
+        <Text style={styles.emptyTitle}>{t('createWallet.configRequired')}</Text>
         <Text style={styles.emptySubtitle}>
-          Selecciona una organización y evento antes de crear wallets
+          {t('createWallet.configRequiredMessage')}
         </Text>
         <TouchableOpacity style={styles.backButton} onPress={handleCancel}>
-          <Text style={styles.backButtonText}>Volver</Text>
+          <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -105,7 +110,7 @@ export default function CreateWalletScreen() {
         <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
           <Ionicons name="close" size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nueva Wallet</Text>
+        <Text style={styles.headerTitle}>{t('createWallet.title')}</Text>
         <View style={styles.closeButton} />
       </View>
 
@@ -128,15 +133,15 @@ export default function CreateWalletScreen() {
 
         {/* Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Datos del Cliente</Text>
+          <Text style={styles.sectionTitle}>{t('createWallet.clientData')}</Text>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nombre</Text>
+            <Text style={styles.label}>{t('createWallet.name')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={20} color="#9CA3AF" />
               <TextInput
                 style={styles.input}
-                placeholder="Nombre del cliente"
+                placeholder={t('createWallet.namePlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={name}
                 onChangeText={setName}
@@ -147,12 +152,12 @@ export default function CreateWalletScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Teléfono</Text>
+            <Text style={styles.label}>{t('createWallet.phone')}</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="call-outline" size={20} color="#9CA3AF" />
               <TextInput
                 style={styles.input}
-                placeholder="10 dígitos"
+                placeholder={t('createWallet.phonePlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={phone}
                 onChangeText={setPhone}
@@ -166,7 +171,7 @@ export default function CreateWalletScreen() {
 
         {/* Initial Balance */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Saldo Inicial (Opcional)</Text>
+          <Text style={styles.sectionTitle}>{t('createWallet.initialBalance')}</Text>
           
           <View style={styles.amountsGrid}>
             {QUICK_AMOUNTS.map((amount) => (
@@ -191,7 +196,7 @@ export default function CreateWalletScreen() {
           </View>
 
           <View style={styles.customAmountContainer}>
-            <Text style={styles.customAmountLabel}>Otro monto</Text>
+            <Text style={styles.customAmountLabel}>{t('createWallet.otherAmount')}</Text>
             <View style={styles.customAmountInput}>
               <Text style={styles.currencySymbol}>$</Text>
               <TextInput
@@ -210,7 +215,7 @@ export default function CreateWalletScreen() {
         {/* Summary */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Saldo inicial</Text>
+            <Text style={styles.summaryLabel}>{t('createWallet.initialBalanceLabel')}</Text>
             <Text style={styles.summaryValue}>
               {formatCurrency(amountCents)}
             </Text>
@@ -226,7 +231,7 @@ export default function CreateWalletScreen() {
         >
           <>
             <Ionicons name="add-circle" size={24} color="#fff" />
-            <Text style={styles.createButtonText}>Crear y Asignar QR</Text>
+            <Text style={styles.createButtonText}>{t('createWallet.createAndAssignQr')}</Text>
           </>
         </TouchableOpacity>
       </View>

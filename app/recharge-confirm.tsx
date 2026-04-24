@@ -2,6 +2,7 @@ import { formatCurrency } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useState } from 'react'
 import {
@@ -32,7 +33,7 @@ export default function RechargeConfirmScreen() {
 
   const handleConfirmRecharge = async () => {
     if (!currentOrg || !currentEvent || !params.walletId) {
-      Alert.alert('Error', 'Datos incompletos para procesar la recarga')
+      Alert.alert(t('common.error'), t('recharge.incompleteData'))
       return
     }
 
@@ -54,7 +55,7 @@ export default function RechargeConfirmScreen() {
         .single()
 
       if (movementError || !movement) {
-        throw new Error('Error al registrar la recarga')
+        throw new Error(t('recharge.rechargeError'))
       }
 
       // 2. Actualizar el balance de la wallet
@@ -66,23 +67,23 @@ export default function RechargeConfirmScreen() {
       if (walletError) {
         // Rollback: eliminar el movimiento
         await (supabase.from('movements') as any).delete().eq('id', movement.id)
-        throw new Error('Error al actualizar el saldo')
+        throw new Error(t('recharge.balanceUpdateError'))
       }
 
       // Éxito
       Alert.alert(
-        '¡Recarga Exitosa!',
-        `Se agregaron ${formatCurrency(amountCents)} a la wallet.\n\nNuevo saldo: ${formatCurrency(newBalanceCents)}`,
+        t('recharge.rechargeSuccess'),
+        t('recharge.rechargeSuccessMessage', { amount: formatCurrency(amountCents), newBalance: formatCurrency(newBalanceCents) }),
         [
           {
-            text: 'Nueva Recarga',
+            text: t('recharge.newRecharge'),
             onPress: () => {
               router.dismissAll()
               setTimeout(() => router.push('/(tabs)/recharge'), 100)
             },
           },
           {
-            text: 'Volver al Inicio',
+            text: t('recharge.goHome'),
             onPress: () => {
               router.dismissAll()
               setTimeout(() => router.push('/(tabs)'), 100)
@@ -91,7 +92,7 @@ export default function RechargeConfirmScreen() {
         ]
       )
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo procesar la recarga')
+      Alert.alert(t('common.error'), error.message || t('recharge.couldNotProcess'))
     } finally {
       setIsProcessing(false)
     }
@@ -108,7 +109,7 @@ export default function RechargeConfirmScreen() {
         <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
           <Ionicons name="close" size={28} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Confirmar Recarga</Text>
+        <Text style={styles.headerTitle}>{t('recharge.confirmRecharge')}</Text>
         <View style={styles.closeButton} />
       </View>
 
@@ -130,7 +131,7 @@ export default function RechargeConfirmScreen() {
         {/* Amount Details */}
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Saldo Actual</Text>
+            <Text style={styles.detailLabel}>{t('recharge.currentBalance')}</Text>
             <Text style={styles.detailValue}>
               {formatCurrency(currentBalanceCents)}
             </Text>
@@ -139,7 +140,7 @@ export default function RechargeConfirmScreen() {
           <View style={styles.divider} />
           
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Monto a Recargar</Text>
+            <Text style={styles.detailLabel}>{t('recharge.amountToRechargeLabel')}</Text>
             <Text style={[styles.detailValue, styles.addAmount]}>
               +{formatCurrency(amountCents)}
             </Text>
@@ -148,7 +149,7 @@ export default function RechargeConfirmScreen() {
           <View style={styles.divider} />
           
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabelBold}>Nuevo Saldo</Text>
+            <Text style={styles.detailLabelBold}>{t('recharge.newBalance')}</Text>
             <Text style={styles.detailValueBold}>
               {formatCurrency(newBalanceCents)}
             </Text>
@@ -163,7 +164,7 @@ export default function RechargeConfirmScreen() {
           onPress={handleCancel}
           disabled={isProcessing}
         >
-          <Text style={styles.cancelButtonText}>Cancelar</Text>
+          <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -177,7 +178,7 @@ export default function RechargeConfirmScreen() {
             <>
               <Ionicons name="add-circle" size={24} color="#fff" />
               <Text style={styles.confirmButtonText}>
-                Recargar {formatCurrency(amountCents)}
+                {t('recharge.rechargeButton', { amount: formatCurrency(amountCents) })}
               </Text>
             </>
           )}

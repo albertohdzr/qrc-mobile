@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { Wallet } from '@/types/database'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { router } from 'expo-router'
 import React, { useRef, useState } from 'react'
@@ -48,16 +49,16 @@ export default function SearchWalletScreen() {
 
       if (!isValidCode5(code5)) {
         Alert.alert(
-          'QR Inválido',
-          'No se pudo identificar un código válido.',
-          [{ text: 'Reintentar', onPress: resetScanner }]
+          t('scanner.invalidQr'),
+          t('scanner.invalidQrMessage'),
+          [{ text: t('common.retry'), onPress: resetScanner }]
         )
         setIsLoading(false)
         return
       }
 
       if (!currentOrg || !currentEvent) {
-        Alert.alert('Error', 'Selecciona organización y evento primero')
+        Alert.alert(t('common.error'), t('searchWallet.selectOrgAndEvent'))
         setIsLoading(false)
         return
       }
@@ -77,9 +78,9 @@ export default function SearchWalletScreen() {
 
       if (error || !qr?.wallet) {
         Alert.alert(
-          'Wallet No Encontrada',
-          'Este QR no tiene una wallet asignada.',
-          [{ text: 'Reintentar', onPress: resetScanner }]
+          t('searchWallet.walletNotFound'),
+          t('searchWallet.walletNotFoundMessage'),
+          [{ text: t('common.retry'), onPress: resetScanner }]
         )
         setIsLoading(false)
         return
@@ -88,7 +89,7 @@ export default function SearchWalletScreen() {
       setScannedCode(code5)
       setWallet(qr.wallet as WalletWithQr)
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Error al buscar wallet')
+      Alert.alert(t('common.error'), error.message || t('searchWallet.searchError'))
     } finally {
       setIsLoading(false)
     }
@@ -123,15 +124,15 @@ export default function SearchWalletScreen() {
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
           <Ionicons name="camera-outline" size={64} color="#6B7280" />
-          <Text style={styles.permissionTitle}>Permiso de Cámara</Text>
+          <Text style={styles.permissionTitle}>{t('scanner.cameraPermission')}</Text>
           <Text style={styles.permissionText}>
-            Necesitamos acceso a la cámara para escanear códigos QR
+            {t('scanner.cameraPermissionMessage')}
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
             onPress={requestPermission}
           >
-            <Text style={styles.permissionButtonText}>Permitir Cámara</Text>
+            <Text style={styles.permissionButtonText}>{t('scanner.allowCamera')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -146,7 +147,7 @@ export default function SearchWalletScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
             <Ionicons name="close" size={28} color="#1F2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Wallet Encontrada</Text>
+          <Text style={styles.headerTitle}>{t('searchWallet.walletFound')}</Text>
           <View style={styles.headerButton} />
         </View>
 
@@ -163,7 +164,7 @@ export default function SearchWalletScreen() {
           </View>
           
           <Text style={styles.walletName}>
-            {wallet.name || wallet.phone || 'Sin nombre'}
+            {wallet.name || wallet.phone || t('common.noName')}
           </Text>
           
           {wallet.phone && (
@@ -180,7 +181,7 @@ export default function SearchWalletScreen() {
           {wallet.status === 'blocked' && (
             <View style={styles.statusBadge}>
               <Ionicons name="lock-closed" size={14} color="#DC2626" />
-              <Text style={styles.statusText}>Wallet Bloqueada</Text>
+              <Text style={styles.statusText}>{t('searchWallet.walletBlocked')}</Text>
             </View>
           )}
 
@@ -197,7 +198,7 @@ export default function SearchWalletScreen() {
               onPress={handleViewDetails}
             >
               <Ionicons name="eye-outline" size={22} color="#fff" />
-              <Text style={styles.actionButtonPrimaryText}>Ver Detalles</Text>
+              <Text style={styles.actionButtonPrimaryText}>{t('searchWallet.viewDetails')}</Text>
             </TouchableOpacity>
           )}
 
@@ -206,7 +207,7 @@ export default function SearchWalletScreen() {
             onPress={resetScanner}
           >
             <Ionicons name="scan-outline" size={22} color="#1F2937" />
-            <Text style={styles.actionButtonSecondaryText}>Escanear Otro</Text>
+            <Text style={styles.actionButtonSecondaryText}>{t('searchWallet.scanAnother')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -230,7 +231,7 @@ export default function SearchWalletScreen() {
           <TouchableOpacity style={styles.headerButtonLight} onPress={() => router.back()}>
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitleLight}>Buscar Wallet</Text>
+          <Text style={styles.headerTitleLight}>{t('searchWallet.title')}</Text>
           <TouchableOpacity style={styles.headerButtonLight} onPress={() => setTorch(!torch)}>
             <Ionicons name={torch ? 'flash' : 'flash-outline'} size={24} color="#fff" />
           </TouchableOpacity>
@@ -246,7 +247,7 @@ export default function SearchWalletScreen() {
             {isLoading && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>Buscando...</Text>
+                <Text style={styles.loadingText}>{t('searchWallet.searching')}</Text>
               </View>
             )}
           </View>
@@ -254,7 +255,7 @@ export default function SearchWalletScreen() {
 
         <View style={styles.instructions}>
           <Text style={styles.instructionsText}>
-            Escanea el QR para ver información de la wallet
+            {t('searchWallet.scanToSearch')}
           </Text>
         </View>
       </View>

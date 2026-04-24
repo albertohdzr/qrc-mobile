@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 
 import { HapticTab } from '@/components/haptic-tab'
 import { useAuthStore } from '@/stores/auth-store'
+import { t } from '@/lib/i18n'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -41,7 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'POS',
+          title: t('tabs.pos'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? 'card' : 'card-outline'} 
@@ -54,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="wallets"
         options={{
-          title: 'Wallets',
+          title: t('tabs.wallets'),
           href: showAdminTabs ? '/wallets' : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
@@ -68,7 +69,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="recharge"
         options={{
-          title: 'Recarga',
+          title: t('tabs.recharge'),
           href: canAccessFeature('recharge') ? '/recharge' : null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
@@ -82,7 +83,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Ajustes',
+          title: t('tabs.settings'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? 'settings' : 'settings-outline'} 

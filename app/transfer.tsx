@@ -3,6 +3,7 @@ import { isValidCode5, parseQrCode } from '@/lib/qr-parser'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { router } from 'expo-router'
 import React, { useRef, useState } from 'react'
@@ -54,15 +55,15 @@ export default function TransferScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: '#F9FAFB', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
         <Ionicons name="lock-closed-outline" size={64} color="#9CA3AF" />
-        <Text style={{ fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 }}>Acceso restringido</Text>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 }}>{t('transfer.restrictedAccess')}</Text>
         <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
-          Solo administradores pueden realizar transferencias
+          {t('transfer.restrictedAccessMessage')}
         </Text>
         <TouchableOpacity 
           style={{ backgroundColor: '#1F2937', borderRadius: 10, paddingHorizontal: 24, paddingVertical: 12, marginTop: 24 }}
           onPress={() => router.back()}
         >
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Volver</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -111,7 +112,7 @@ export default function TransferScreen() {
       const code5 = parseQrCode(data)
 
       if (!isValidCode5(code5)) {
-        Alert.alert('QR Inválido', 'Código no válido.', [{ text: 'Reintentar', onPress: resetScanner }])
+        Alert.alert(t('transfer.invalidQr'), t('transfer.invalidQrMessage'), [{ text: t('common.retry'), onPress: resetScanner }])
         setIsLoading(false)
         return
       }
@@ -119,13 +120,13 @@ export default function TransferScreen() {
       const wallet = await findWalletByCode(code5)
 
       if (!wallet) {
-        Alert.alert('Wallet No Encontrada', 'Este QR no tiene wallet.', [{ text: 'Reintentar', onPress: resetScanner }])
+        Alert.alert(t('transfer.walletNotFound'), t('transfer.walletNotFoundMessage'), [{ text: t('common.retry'), onPress: resetScanner }])
         setIsLoading(false)
         return
       }
 
       if (wallet.status === 'blocked') {
-        Alert.alert('Wallet Bloqueada', 'Esta wallet está bloqueada.', [{ text: 'Reintentar', onPress: resetScanner }])
+        Alert.alert(t('transfer.walletBlocked'), t('transfer.walletBlockedMessage'), [{ text: t('common.retry'), onPress: resetScanner }])
         setIsLoading(false)
         return
       }
@@ -136,7 +137,7 @@ export default function TransferScreen() {
         resetScanner()
       } else if (step === 'scan_destination') {
         if (wallet.id === originWallet?.id) {
-          Alert.alert('Error', 'No puedes transferir a la misma wallet.', [{ text: 'Reintentar', onPress: resetScanner }])
+          Alert.alert(t('common.error'), t('transfer.sameWalletError'), [{ text: t('common.retry'), onPress: resetScanner }])
           setIsLoading(false)
           return
         }
@@ -144,7 +145,7 @@ export default function TransferScreen() {
         setStep('enter_amount')
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Error al buscar wallet')
+      Alert.alert(t('common.error'), error.message || t('searchWallet.searchError'))
     } finally {
       setIsLoading(false)
     }
@@ -153,11 +154,11 @@ export default function TransferScreen() {
   const handleConfirmTransfer = async () => {
     if (!originWallet || !destinationWallet || !currentOrg || !currentEvent) return
     if (amountCents <= 0) {
-      Alert.alert('Error', 'Ingresa un monto válido')
+      Alert.alert(t('common.error'), t('transfer.invalidAmount'))
       return
     }
     if (amountCents > originWallet.balance_cents) {
-      Alert.alert('Error', 'Saldo insuficiente en la wallet origen')
+      Alert.alert(t('common.error'), t('transfer.insufficientBalance'))
       return
     }
 
@@ -234,21 +235,21 @@ export default function TransferScreen() {
       }
 
       Alert.alert(
-        '¡Transferencia Exitosa!',
-        `Se transfirieron ${formatCurrency(amountCents)} de ${originWallet.name || originWallet.code5} a ${destinationWallet.name || destinationWallet.code5}`,
+        t('transfer.transferSuccess'),
+        t('transfer.transferSuccessMessage', { amount: formatCurrency(amountCents), from: originWallet.name || originWallet.code5, to: destinationWallet.name || destinationWallet.code5 }),
         [
-          { text: 'Nueva Transferencia', onPress: () => {
+          { text: t('transfer.newTransfer'), onPress: () => {
             setOriginWallet(null)
             setDestinationWallet(null)
             setAmount('')
             setStep('scan_origin')
             resetScanner()
           }},
-          { text: 'Volver', onPress: () => router.back() },
+          { text: t('common.back'), onPress: () => router.back() },
         ]
       )
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo completar la transferencia')
+      Alert.alert(t('common.error'), error.message || t('transfer.couldNotTransfer'))
     } finally {
       setIsLoading(false)
     }
@@ -263,9 +264,9 @@ export default function TransferScreen() {
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
           <Ionicons name="camera-outline" size={64} color="#6B7280" />
-          <Text style={styles.permissionTitle}>Permiso de Cámara</Text>
+          <Text style={styles.permissionTitle}>{t('scanner.cameraPermission')}</Text>
           <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-            <Text style={styles.permissionButtonText}>Permitir Cámara</Text>
+            <Text style={styles.permissionButtonText}>{t('scanner.allowCamera')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -284,7 +285,7 @@ export default function TransferScreen() {
           <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
             <Ionicons name="close" size={28} color="#1F2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Transferencia</Text>
+          <Text style={styles.headerTitle}>{t('transfer.title')}</Text>
           <View style={styles.headerButton} />
         </View>
 
@@ -298,7 +299,7 @@ export default function TransferScreen() {
           <View style={styles.transferSummary}>
             {/* Origin */}
             <View style={styles.walletSummaryCard}>
-              <Text style={styles.walletLabel}>ORIGEN</Text>
+              <Text style={styles.walletLabel}>{t('transfer.origin')}</Text>
               <Text style={styles.walletSummaryName}>
                 {originWallet?.name || originWallet?.phone || originWallet?.code5}
               </Text>
@@ -313,7 +314,7 @@ export default function TransferScreen() {
 
             {/* Destination */}
             <View style={styles.walletSummaryCard}>
-              <Text style={styles.walletLabel}>DESTINO</Text>
+              <Text style={styles.walletLabel}>{t('transfer.destination')}</Text>
               <Text style={styles.walletSummaryName}>
                 {destinationWallet?.name || destinationWallet?.phone || destinationWallet?.code5}
               </Text>
@@ -325,7 +326,7 @@ export default function TransferScreen() {
 
           {/* Amount input */}
           <View style={styles.amountSection}>
-            <Text style={styles.amountLabel}>Monto a transferir</Text>
+            <Text style={styles.amountLabel}>{t('transfer.amountToTransfer')}</Text>
             <View style={styles.amountInputContainer}>
               <Text style={styles.currencySymbol}>$</Text>
               <TextInput
@@ -339,14 +340,14 @@ export default function TransferScreen() {
               />
             </View>
             <Text style={styles.availableText}>
-              Disponible: {formatCurrency(originWallet?.balance_cents || 0)}
+              {t('transfer.availableBalance')}: {formatCurrency(originWallet?.balance_cents || 0)}
             </Text>
           </View>
 
           {/* New balances preview */}
           {amountCents > 0 && (
             <View style={styles.previewSection}>
-              <Text style={styles.previewTitle}>Después de la transferencia</Text>
+              <Text style={styles.previewTitle}>{t('transfer.afterTransfer')}</Text>
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>{originWallet?.name || originWallet?.code5}</Text>
                 <Text style={[styles.previewValue, { color: '#DC2626' }]}>
@@ -379,7 +380,7 @@ export default function TransferScreen() {
               <>
                 <Ionicons name="swap-horizontal" size={24} color="#fff" />
                 <Text style={styles.confirmButtonText}>
-                  Transferir {formatCurrency(amountCents)}
+                  {t('transfer.transferButton', { amount: formatCurrency(amountCents) })}
                 </Text>
               </>
             )}
@@ -408,9 +409,9 @@ export default function TransferScreen() {
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitleLight}>Transferencia</Text>
+            <Text style={styles.headerTitleLight}>{t('transfer.title')}</Text>
             <Text style={styles.stepText}>
-              Paso {isOriginStep ? '1' : '2'} de 2
+              {t('transfer.step', { current: isOriginStep ? '1' : '2', total: '2' })}
             </Text>
           </View>
           <TouchableOpacity style={styles.headerButtonLight} onPress={() => setTorch(!torch)}>
@@ -421,7 +422,7 @@ export default function TransferScreen() {
         {/* Origin wallet preview */}
         {!isOriginStep && originWallet && (
           <View style={styles.originPreview}>
-            <Text style={styles.originPreviewLabel}>Origen:</Text>
+            <Text style={styles.originPreviewLabel}>{t('transfer.originLabel')}</Text>
             <Text style={styles.originPreviewName}>
               {originWallet.name || originWallet.phone || originWallet.code5}
             </Text>
@@ -449,12 +450,12 @@ export default function TransferScreen() {
 
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>
-            {isOriginStep ? 'Escanea la wallet ORIGEN' : 'Escanea la wallet DESTINO'}
+            {isOriginStep ? t('transfer.scanOrigin') : t('transfer.scanDestination')}
           </Text>
           <Text style={styles.instructionsText}>
             {isOriginStep 
-              ? 'Esta wallet enviará el saldo' 
-              : 'Esta wallet recibirá el saldo'}
+              ? t('transfer.originHint') 
+              : t('transfer.destinationHint')}
           </Text>
         </View>
       </View>

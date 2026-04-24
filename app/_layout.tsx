@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import Auth from '@/components/Auth'
+import { t } from '@/lib/i18n'
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -138,7 +139,7 @@ export default function RootLayout() {
           name="select-org" 
           options={{ 
             presentation: 'modal', 
-            title: 'Seleccionar Organización',
+            title: t('selectOrg.title'),
             headerStyle: { backgroundColor: '#F9FAFB' },
           }} 
         />
@@ -146,7 +147,7 @@ export default function RootLayout() {
           name="select-event" 
           options={{ 
             presentation: 'modal', 
-            title: 'Seleccionar Evento',
+            title: t('selectEvent.title'),
             headerStyle: { backgroundColor: '#F9FAFB' },
           }} 
         />

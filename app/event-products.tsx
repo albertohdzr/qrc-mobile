@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/api'
 import { EventProduct, Product, EventArea } from '@/types/database'
+import { t } from '@/lib/i18n'
 
 interface ProductWithBase extends EventProduct {
   base_product: Product
@@ -78,7 +79,7 @@ export default function EventProductsScreen() {
           <Text style={styles.productName}>{item.base_product.name}</Text>
           {item.is_pass && (
             <View style={{ backgroundColor: '#D1FAE5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>🎫 Pase</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>{t('eventProducts.pass')}</Text>
             </View>
           )}
         </View>
@@ -124,14 +125,14 @@ export default function EventProductsScreen() {
         <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Productos del Evento</Text>
+        <Text style={styles.headerTitle}>{t('eventProducts.title')}</Text>
         <View style={styles.headerButton} />
       </View>
 
       {!currentOrg || !currentEvent ? (
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>Configuración requerida</Text>
+          <Text style={styles.emptyTitle}>{t('eventProducts.configRequired')}</Text>
         </View>
       ) : isLoading ? (
         <ActivityIndicator size="large" color="#1F2937" style={styles.loader} />
@@ -150,7 +151,7 @@ export default function EventProductsScreen() {
                   onPress={() => setSelectedArea(null)}
                 >
                   <Text style={[styles.areaChipText, !selectedArea && styles.areaChipTextActive]}>
-                    Todos
+                    {t('eventProducts.all')}
                   </Text>
                 </TouchableOpacity>
                 {areas.map((area) => (
@@ -172,9 +173,9 @@ export default function EventProductsScreen() {
           {filteredProducts.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="pricetag-outline" size={64} color="#D1D5DB" />
-              <Text style={styles.emptyTitle}>Sin productos</Text>
+              <Text style={styles.emptyTitle}>{t('eventProducts.noProducts')}</Text>
               <Text style={styles.emptySubtitle}>
-                No hay productos {selectedArea ? 'en esta área' : 'para este evento'}
+                {selectedArea ? t('eventProducts.noProductsInArea') : t('eventProducts.noProductsForEvent')}
               </Text>
             </View>
           ) : (

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
 import React, { useState, useRef } from 'react'
 import {
   ActivityIndicator,
@@ -82,7 +83,7 @@ export default function Auth() {
   // ── Sign In ──────────────────────────────────────────────
   async function signInWithEmail() {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor ingresa tu email y contraseña')
+      Alert.alert(t('common.error'), t('auth.enterEmailAndPassword'))
       return
     }
 
@@ -93,7 +94,7 @@ export default function Auth() {
     })
 
     if (error) {
-      Alert.alert('Error', translateError(error.message))
+      Alert.alert(t('common.error'), translateError(error.message))
     }
     setLoading(false)
   }
@@ -102,7 +103,7 @@ export default function Auth() {
   async function sendPasswordReset() {
     const trimmedEmail = email.trim()
     if (!trimmedEmail) {
-      Alert.alert('Error', 'Por favor ingresa tu email')
+      Alert.alert(t('common.error'), t('auth.enterEmail'))
       return
     }
 
@@ -110,7 +111,7 @@ export default function Auth() {
     const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail)
 
     if (error) {
-      Alert.alert('Error', translateError(error.message))
+      Alert.alert(t('common.error'), translateError(error.message))
       setLoading(false)
       return
     }
@@ -124,7 +125,7 @@ export default function Auth() {
   async function verifyOtp() {
     const token = otpDigits.join('')
     if (token.length !== 8) {
-      Alert.alert('Error', 'Por favor ingresa el código completo de 8 dígitos')
+      Alert.alert(t('common.error'), t('auth.enterFullCode'))
       return
     }
 
@@ -136,7 +137,7 @@ export default function Auth() {
     })
 
     if (error) {
-      Alert.alert('Error', translateError(error.message))
+      Alert.alert(t('common.error'), translateError(error.message))
       setLoading(false)
       return
     }
@@ -153,15 +154,15 @@ export default function Auth() {
   // ── Step 3: Set new password ────────────────────────────
   async function updatePassword() {
     if (!newPassword) {
-      Alert.alert('Error', 'Por favor ingresa tu nueva contraseña')
+      Alert.alert(t('common.error'), t('auth.enterNewPassword'))
       return
     }
     if (newPassword.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres')
+      Alert.alert(t('common.error'), t('auth.passwordMinLength'))
       return
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden')
+      Alert.alert(t('common.error'), t('auth.passwordsMismatch'))
       return
     }
 
@@ -171,7 +172,7 @@ export default function Auth() {
     })
 
     if (error) {
-      Alert.alert('Error', translateError(error.message))
+      Alert.alert(t('common.error'), translateError(error.message))
       setLoading(false)
       return
     }
@@ -235,14 +236,14 @@ export default function Auth() {
   // ── Error translations ──────────────────────────────────
   function translateError(message: string): string {
     const translations: Record<string, string> = {
-      'Invalid login credentials': 'Credenciales inválidas',
-      'Email not confirmed': 'Email no confirmado. Revisa tu correo.',
-      'User already registered': 'Este email ya está registrado',
-      'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres',
-      'For security purposes, you can only request this once every 60 seconds': 'Por seguridad, solo puedes solicitar esto una vez cada 60 segundos',
-      'Unable to validate email address: invalid format': 'El formato del email no es válido',
-      'Token has expired or is invalid': 'El código ha expirado o es inválido',
-      'New password should be different from the old password.': 'La nueva contraseña debe ser diferente a la anterior',
+      'Invalid login credentials': t('auth.invalidCredentials'),
+      'Email not confirmed': t('auth.emailNotConfirmed'),
+      'User already registered': t('auth.userAlreadyRegistered'),
+      'Password should be at least 6 characters': t('auth.passwordTooShort'),
+      'For security purposes, you can only request this once every 60 seconds': t('auth.rateLimited'),
+      'Unable to validate email address: invalid format': t('auth.invalidEmailFormat'),
+      'Token has expired or is invalid': t('auth.tokenExpired'),
+      'New password should be different from the old password.': t('auth.samePassword'),
     }
     return translations[message] ?? message
   }
@@ -254,17 +255,17 @@ export default function Auth() {
   const renderLoginForm = () => (
     <>
       {/* Header */}
-      <Text style={styles.title}>Bienvenido</Text>
-      <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
+      <Text style={styles.title}>{t('auth.welcome')}</Text>
+      <Text style={styles.subtitle}>{t('auth.signInSubtitle')}</Text>
 
       {/* Email Input */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('auth.email')}</Text>
         <View style={styles.inputContainer}>
           <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="tu@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             placeholderTextColor="#9CA3AF"
             value={email}
             onChangeText={setEmail}
@@ -278,7 +279,7 @@ export default function Auth() {
 
       {/* Password Input */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Contraseña</Text>
+        <Text style={styles.label}>{t('auth.password')}</Text>
         <View style={styles.inputContainer}>
           <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
           <TextInput
@@ -312,7 +313,7 @@ export default function Auth() {
         onPress={handleForgotPassword}
         disabled={loading}
       >
-        <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+        <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
       </TouchableOpacity>
 
       {/* Main Button */}
@@ -325,7 +326,7 @@ export default function Auth() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.mainButtonText}>Iniciar sesión</Text>
+          <Text style={styles.mainButtonText}>{t('auth.signIn')}</Text>
         )}
       </TouchableOpacity>
     </>
@@ -340,21 +341,21 @@ export default function Auth() {
         disabled={loading}
       >
         <Ionicons name="arrow-back" size={20} color="#1F2937" />
-        <Text style={styles.backButtonText}>Volver</Text>
+        <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Recuperar contraseña</Text>
+      <Text style={styles.title}>{t('auth.recoverPassword')}</Text>
       <Text style={styles.subtitle}>
-        Ingresa tu email y te enviaremos un código de verificación de 8 dígitos
+        {t('auth.recoverSubtitle')}
       </Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('auth.email')}</Text>
         <View style={styles.inputContainer}>
           <Ionicons name="mail-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="tu@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             placeholderTextColor="#9CA3AF"
             value={email}
             onChangeText={setEmail}
@@ -376,7 +377,7 @@ export default function Auth() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.mainButtonText}>Enviar código</Text>
+          <Text style={styles.mainButtonText}>{t('auth.sendCode')}</Text>
         )}
       </TouchableOpacity>
     </>
@@ -391,16 +392,16 @@ export default function Auth() {
         disabled={loading}
       >
         <Ionicons name="arrow-back" size={20} color="#1F2937" />
-        <Text style={styles.backButtonText}>Volver</Text>
+        <Text style={styles.backButtonText}>{t('common.back')}</Text>
       </TouchableOpacity>
 
       <View style={styles.otpHeaderIcon}>
         <Ionicons name="shield-checkmark-outline" size={40} color="#4F46E5" />
       </View>
 
-      <Text style={styles.title}>Ingresa el código</Text>
+      <Text style={styles.title}>{t('auth.enterCode')}</Text>
       <Text style={styles.subtitle}>
-        Enviamos un código de 8 dígitos a{'\n'}
+        {t('auth.codeSentTo')}{'\n'}
         <Text style={styles.emailHighlight}>{email.trim()}</Text>
       </Text>
 
@@ -434,7 +435,7 @@ export default function Auth() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.mainButtonText}>Verificar código</Text>
+          <Text style={styles.mainButtonText}>{t('auth.verifyCode')}</Text>
         )}
       </TouchableOpacity>
 
@@ -447,11 +448,11 @@ export default function Auth() {
         }}
         disabled={loading}
       >
-        <Text style={styles.resendText}>¿No recibiste el código? <Text style={styles.resendTextBold}>Reenviar</Text></Text>
+        <Text style={styles.resendText}>{t('auth.noCodeReceived')} <Text style={styles.resendTextBold}>{t('auth.resend')}</Text></Text>
       </TouchableOpacity>
 
       <Text style={styles.spamNote}>
-        Revisa tu carpeta de spam si no encuentras el correo
+        {t('auth.checkSpam')}
       </Text>
     </>
   )
@@ -463,16 +464,16 @@ export default function Auth() {
         <Ionicons name="lock-open-outline" size={40} color="#059669" />
       </View>
 
-      <Text style={styles.title}>Nueva contraseña</Text>
-      <Text style={styles.subtitle}>Crea una contraseña segura para tu cuenta</Text>
+      <Text style={styles.title}>{t('auth.newPassword')}</Text>
+      <Text style={styles.subtitle}>{t('auth.newPasswordSubtitle')}</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Nueva contraseña</Text>
+        <Text style={styles.label}>{t('auth.newPassword')}</Text>
         <View style={styles.inputContainer}>
           <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Mínimo 6 caracteres"
+            placeholder={t('auth.passwordPlaceholder')}
             placeholderTextColor="#9CA3AF"
             value={newPassword}
             onChangeText={setNewPassword}
@@ -496,12 +497,12 @@ export default function Auth() {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Confirmar contraseña</Text>
+        <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
         <View style={styles.inputContainer}>
           <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Repite tu contraseña"
+            placeholder={t('auth.confirmPasswordPlaceholder')}
             placeholderTextColor="#9CA3AF"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
@@ -532,7 +533,7 @@ export default function Auth() {
             color={newPassword.length >= 6 ? '#059669' : '#9CA3AF'}
           />
           <Text style={[styles.hintText, newPassword.length >= 6 && styles.hintTextValid]}>
-            Mínimo 6 caracteres
+            {t('auth.minChars')}
           </Text>
         </View>
         <View style={styles.hintRow}>
@@ -542,7 +543,7 @@ export default function Auth() {
             color={newPassword && newPassword === confirmPassword ? '#059669' : '#9CA3AF'}
           />
           <Text style={[styles.hintText, newPassword && newPassword === confirmPassword && styles.hintTextValid]}>
-            Las contraseñas coinciden
+            {t('auth.passwordsMatch')}
           </Text>
         </View>
       </View>
@@ -556,7 +557,7 @@ export default function Auth() {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.mainButtonText}>Guardar contraseña</Text>
+          <Text style={styles.mainButtonText}>{t('auth.savePassword')}</Text>
         )}
       </TouchableOpacity>
     </>
@@ -571,9 +572,9 @@ export default function Auth() {
         </View>
       </View>
 
-      <Text style={styles.title}>¡Contraseña actualizada!</Text>
+      <Text style={styles.title}>{t('auth.passwordUpdated')}</Text>
       <Text style={styles.subtitle}>
-        Tu contraseña se ha cambiado exitosamente.{'\n'}Ya puedes iniciar sesión con tu nueva contraseña.
+        {t('auth.passwordUpdatedSubtitle')}
       </Text>
 
       <TouchableOpacity
@@ -581,7 +582,7 @@ export default function Auth() {
         onPress={handleBackToLogin}
         activeOpacity={0.8}
       >
-        <Text style={styles.mainButtonText}>Iniciar sesión</Text>
+        <Text style={styles.mainButtonText}>{t('auth.signIn')}</Text>
       </TouchableOpacity>
     </>
   )

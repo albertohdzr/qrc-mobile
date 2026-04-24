@@ -2,6 +2,7 @@ import { checkWalletBalance } from '@/lib/api'
 import { isValidCode5, parseQrCode } from '@/lib/qr-parser'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCartStore } from '@/stores/cart-store'
+import { t } from '@/lib/i18n'
 import { Ionicons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { router } from 'expo-router'
@@ -53,9 +54,9 @@ export default function ScannerScreen() {
       
       if (!isValidCode5(code5)) {
         Alert.alert(
-          'QR Inválido',
-          'No se pudo identificar un código válido en el QR escaneado.',
-          [{ text: 'Reintentar', onPress: () => {
+          t('scanner.invalidQr'),
+          t('scanner.invalidQrMessage'),
+          [{ text: t('common.retry'), onPress: () => {
             isProcessingRef.current = false
             setIsScanning(true)
           }}]
@@ -66,9 +67,9 @@ export default function ScannerScreen() {
 
       if (!currentOrg || !currentEvent) {
         Alert.alert(
-          'Configuración Requerida',
-          'Debes seleccionar una organización y evento antes de escanear.',
-          [{ text: 'OK', onPress: () => {
+          t('scanner.configRequired'),
+          t('scanner.configRequiredMessage'),
+          [{ text: t('common.ok'), onPress: () => {
             isProcessingRef.current = false
             router.back()
           }}]
@@ -87,8 +88,8 @@ export default function ScannerScreen() {
       if (!result.success || !result.wallet) {
         Alert.alert(
           'Error',
-          result.error || 'No se pudo verificar la wallet.',
-          [{ text: 'Reintentar', onPress: () => {
+          result.error || t('scanner.couldNotVerify'),
+          [{ text: t('common.retry'), onPress: () => {
             isProcessingRef.current = false
             setIsScanning(true)
           }}]
@@ -110,8 +111,8 @@ export default function ScannerScreen() {
     } catch (error: any) {
       Alert.alert(
         'Error',
-        error.message || 'Ocurrió un error al procesar el QR.',
-        [{ text: 'Reintentar', onPress: () => {
+        error.message || t('scanner.processingError'),
+        [{ text: t('common.retry'), onPress: () => {
           isProcessingRef.current = false
           setIsScanning(true)
         }}]
@@ -133,15 +134,15 @@ export default function ScannerScreen() {
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
           <Ionicons name="camera-outline" size={64} color="#6B7280" />
-          <Text style={styles.permissionTitle}>Permiso de Cámara</Text>
+          <Text style={styles.permissionTitle}>{t('scanner.cameraPermission')}</Text>
           <Text style={styles.permissionText}>
-            Necesitamos acceso a la cámara para escanear códigos QR
+            {t('scanner.cameraPermissionMessage')}
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
             onPress={requestPermission}
           >
-            <Text style={styles.permissionButtonText}>Permitir Cámara</Text>
+            <Text style={styles.permissionButtonText}>{t('scanner.allowCamera')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -170,7 +171,7 @@ export default function ScannerScreen() {
           >
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Escanear QR</Text>
+          <Text style={styles.headerTitle}>{t('scanner.scanQr')}</Text>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => setTorch(!torch)}
@@ -195,7 +196,7 @@ export default function ScannerScreen() {
             {isLoading && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>Verificando...</Text>
+                <Text style={styles.loadingText}>{t('scanner.verifying')}</Text>
               </View>
             )}
           </View>
@@ -204,7 +205,7 @@ export default function ScannerScreen() {
         {/* Instructions */}
         <View style={styles.instructions}>
           <Text style={styles.instructionsText}>
-            Apunta la cámara al código QR de la pulsera o tarjeta
+            {t('scanner.pointCamera')}
           </Text>
           
           {/* Context info */}
@@ -212,13 +213,13 @@ export default function ScannerScreen() {
             <View style={styles.contextItem}>
               <Ionicons name="business-outline" size={16} color="rgba(255,255,255,0.7)" />
               <Text style={styles.contextText} numberOfLines={1}>
-                {currentOrg?.name ?? 'Sin organización'}
+                {currentOrg?.name ?? t('scanner.noOrg')}
               </Text>
             </View>
             <View style={styles.contextItem}>
               <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.7)" />
               <Text style={styles.contextText} numberOfLines={1}>
-                {currentEvent?.name ?? 'Sin evento'}
+                {currentEvent?.name ?? t('scanner.noEvent')}
               </Text>
             </View>
           </View>

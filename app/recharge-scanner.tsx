@@ -2,6 +2,7 @@ import { checkWalletBalance, formatCurrency } from '@/lib/api'
 import { isValidCode5, parseQrCode } from '@/lib/qr-parser'
 import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useRef, useState } from 'react'
@@ -51,9 +52,9 @@ export default function RechargeScannerScreen() {
       
       if (!isValidCode5(code5)) {
         Alert.alert(
-          'QR Inválido',
-          'No se pudo identificar un código válido en el QR escaneado.',
-          [{ text: 'Reintentar', onPress: () => {
+          t('scanner.invalidQr'),
+          t('scanner.invalidQrMessage'),
+          [{ text: t('common.retry'), onPress: () => {
             isProcessingRef.current = false
             setIsScanning(true)
           }}]
@@ -64,9 +65,9 @@ export default function RechargeScannerScreen() {
 
       if (!currentOrg || !currentEvent) {
         Alert.alert(
-          'Configuración Requerida',
-          'Debes seleccionar una organización y evento antes de escanear.',
-          [{ text: 'OK', onPress: () => {
+          t('scanner.configRequired'),
+          t('scanner.configRequiredMessage'),
+          [{ text: t('common.ok'), onPress: () => {
             isProcessingRef.current = false
             router.back()
           }}]
@@ -85,8 +86,8 @@ export default function RechargeScannerScreen() {
       if (!result.success || !result.wallet) {
         Alert.alert(
           'Error',
-          result.error || 'No se pudo verificar la wallet.',
-          [{ text: 'Reintentar', onPress: () => {
+          result.error || t('scanner.couldNotVerify'),
+          [{ text: t('common.retry'), onPress: () => {
             isProcessingRef.current = false
             setIsScanning(true)
           }}]
@@ -110,8 +111,8 @@ export default function RechargeScannerScreen() {
     } catch (error: any) {
       Alert.alert(
         'Error',
-        error.message || 'Ocurrió un error al procesar el QR.',
-        [{ text: 'Reintentar', onPress: () => {
+        error.message || t('scanner.processingError'),
+        [{ text: t('common.retry'), onPress: () => {
           isProcessingRef.current = false
           setIsScanning(true)
         }}]
@@ -133,15 +134,15 @@ export default function RechargeScannerScreen() {
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
           <Ionicons name="camera-outline" size={64} color="#6B7280" />
-          <Text style={styles.permissionTitle}>Permiso de Cámara</Text>
+          <Text style={styles.permissionTitle}>{t('scanner.cameraPermission')}</Text>
           <Text style={styles.permissionText}>
-            Necesitamos acceso a la cámara para escanear códigos QR
+            {t('scanner.cameraPermissionMessage')}
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
             onPress={requestPermission}
           >
-            <Text style={styles.permissionButtonText}>Permitir Cámara</Text>
+            <Text style={styles.permissionButtonText}>{t('scanner.allowCamera')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -171,7 +172,7 @@ export default function RechargeScannerScreen() {
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Escanear para Recargar</Text>
+            <Text style={styles.headerTitle}>{t('recharge.scanToRecharge')}</Text>
             <Text style={styles.headerAmount}>
               {formatCurrency(amountCents)}
             </Text>
@@ -199,7 +200,7 @@ export default function RechargeScannerScreen() {
             {isLoading && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>Verificando...</Text>
+                <Text style={styles.loadingText}>{t('scanner.verifying')}</Text>
               </View>
             )}
           </View>
@@ -208,7 +209,7 @@ export default function RechargeScannerScreen() {
         {/* Instructions */}
         <View style={styles.instructions}>
           <Text style={styles.instructionsText}>
-            Escanea el QR de la wallet a recargar
+            {t('recharge.scanQrToRecharge')}
           </Text>
         </View>
       </View>

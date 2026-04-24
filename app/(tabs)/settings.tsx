@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { t } from '@/lib/i18n'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -37,12 +38,12 @@ export default function SettingsScreen() {
 
   const handleSignOut = () => {
     Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
+      t('auth.signOut'),
+      t('auth.signOutConfirm'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { 
-          text: 'Cerrar Sesión', 
+          text: t('auth.signOut'), 
           style: 'destructive',
           onPress: signOut,
         },
@@ -56,8 +57,8 @@ export default function SettingsScreen() {
       icon: 'business',
       iconColor: '#4F46E5',
       iconBg: '#EEF2FF',
-      title: 'Organización',
-      subtitle: currentOrg?.name ?? 'No seleccionada',
+      title: t('settings.organization'),
+      subtitle: currentOrg?.name ?? t('settings.notSelected'),
       onPress: () => router.push('/select-org'),
     },
     {
@@ -65,8 +66,8 @@ export default function SettingsScreen() {
       icon: 'calendar',
       iconColor: '#D97706',
       iconBg: '#FEF3C7',
-      title: 'Evento Activo',
-      subtitle: currentEvent?.name ?? 'No seleccionado',
+      title: t('settings.activeEvent'),
+      subtitle: currentEvent?.name ?? t('settings.eventNotSelected'),
       onPress: () => router.push('/select-event'),
     },
     {
@@ -74,8 +75,8 @@ export default function SettingsScreen() {
       icon: 'qr-code',
       iconColor: '#7C3AED',
       iconBg: '#EDE9FE',
-      title: 'Códigos QR',
-      subtitle: 'Gestionar QRs y lotes',
+      title: t('settings.qrCodes'),
+      subtitle: t('settings.manageQrs'),
       onPress: () => router.push('/qr-management'),
       adminOnly: true,
     },
@@ -84,8 +85,8 @@ export default function SettingsScreen() {
       icon: 'people',
       iconColor: '#0891B2',
       iconBg: '#CFFAFE',
-      title: 'Equipo',
-      subtitle: 'Gestionar miembros',
+      title: t('settings.team'),
+      subtitle: t('settings.manageMembers'),
       onPress: () => router.push('/team-management'),
       adminOnly: true,
     },
@@ -94,8 +95,8 @@ export default function SettingsScreen() {
       icon: 'bar-chart',
       iconColor: '#EA580C',
       iconBg: '#FFEDD5',
-      title: 'Reportes',
-      subtitle: 'Ver estadísticas',
+      title: t('settings.reports'),
+      subtitle: t('settings.viewStats'),
       onPress: () => router.push('/event-report'),
       adminOnly: true,
     },
@@ -108,9 +109,9 @@ export default function SettingsScreen() {
   const getRoleBadge = () => {
     if (!currentOrg) return null
     const roleLabels: Record<string, string> = {
-      owner: 'Propietario',
-      admin: 'Administrador',
-      cashier: 'Cajero',
+      owner: t('settings.owner'),
+      admin: t('settings.admin'),
+      cashier: t('settings.cashier'),
     }
     const roleColors: Record<string, { bg: string; text: string }> = {
       owner: { bg: '#FEF3C7', text: '#D97706' },
@@ -140,7 +141,7 @@ export default function SettingsScreen() {
           <Text style={styles.profileName}>
             {profile?.first_name && profile?.last_name
               ? `${profile.first_name} ${profile.last_name}`
-              : user?.email ?? 'Usuario'}
+              : user?.email ?? t('common.user')}
           </Text>
           <Text style={styles.profileEmail}>{user?.email}</Text>
           {getRoleBadge()}
@@ -152,7 +153,7 @@ export default function SettingsScreen() {
         <View style={styles.orgCountCard}>
           <Ionicons name="business-outline" size={20} color="#6B7280" />
           <Text style={styles.orgCountText}>
-            Tienes acceso a {organizations.length} organizaciones
+            {t('settings.orgAccessCount', { count: organizations.length })}
           </Text>
         </View>
       )}
@@ -187,11 +188,11 @@ export default function SettingsScreen() {
         activeOpacity={0.7}
       >
         <Ionicons name="log-out-outline" size={22} color="#DC2626" />
-        <Text style={styles.signOutText}>Cerrar Sesión</Text>
+        <Text style={styles.signOutText}>{t('auth.signOut')}</Text>
       </TouchableOpacity>
 
       {/* Version */}
-      <Text style={styles.versionText}>Versión 2.0.0</Text>
+      <Text style={styles.versionText}>{t('common.version')} 2.0.0</Text>
     </ScrollView>
   )
 }

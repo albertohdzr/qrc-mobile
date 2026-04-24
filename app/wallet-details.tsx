@@ -2,6 +2,8 @@ import { formatCurrency } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { Movement, MovementType, Wallet } from '@/types/database'
 import { Ionicons } from '@expo/vector-icons'
+import { t } from '@/lib/i18n'
+import i18n from '@/lib/i18n'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useState } from 'react'
 import {
@@ -77,7 +79,7 @@ export default function WalletDetailsScreen() {
       setMovements((movementsData as MovementWithItems[]) ?? [])
     } catch (error) {
       console.error('Error loading wallet:', error)
-      Alert.alert('Error', 'No se pudo cargar la wallet')
+      Alert.alert(t('common.error'), t('walletDetails.couldNotLoad'))
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -93,15 +95,13 @@ export default function WalletDetailsScreen() {
     if (!wallet) return
 
     const newStatus = wallet.status === 'active' ? 'blocked' : 'active'
-    const action = newStatus === 'blocked' ? 'bloquear' : 'desbloquear'
-
     Alert.alert(
-      `${newStatus === 'blocked' ? 'Bloquear' : 'Desbloquear'} Wallet`,
-      `¿Estás seguro de que quieres ${action} esta wallet?`,
+      newStatus === 'blocked' ? t('walletDetails.blockWallet') : t('walletDetails.unblockWallet'),
+      newStatus === 'blocked' ? t('walletDetails.confirmBlock') : t('walletDetails.confirmUnblock'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: newStatus === 'blocked' ? 'Bloquear' : 'Desbloquear',
+          text: newStatus === 'blocked' ? t('walletDetails.blockWallet') : t('walletDetails.unblockWallet'),
           style: newStatus === 'blocked' ? 'destructive' : 'default',
           onPress: async () => {
             try {
@@ -113,9 +113,9 @@ export default function WalletDetailsScreen() {
               if (error) throw error
 
               setWallet({ ...wallet, status: newStatus })
-              Alert.alert('Éxito', `Wallet ${newStatus === 'blocked' ? 'bloqueada' : 'desbloqueada'}`)
+              Alert.alert(t('qrManagement.success'), newStatus === 'blocked' ? t('walletDetails.walletBlockedSuccess') : t('walletDetails.walletUnblockedSuccess'))
             } catch (error) {
-              Alert.alert('Error', 'No se pudo actualizar el estado')
+              Alert.alert(t('common.error'), t('walletDetails.couldNotUpdateStatus'))
             }
           },
         },
@@ -145,17 +145,17 @@ export default function WalletDetailsScreen() {
   const getMovementLabel = (type: MovementType): string => {
     switch (type) {
       case 'payment':
-        return 'Pago'
+        return t('walletDetails.payment')
       case 'deposit':
-        return 'Recarga'
+        return t('walletDetails.deposit')
       case 'initial_deposit':
-        return 'Depósito Inicial'
+        return t('walletDetails.initialDeposit')
       case 'refund':
-        return 'Reembolso'
+        return t('walletDetails.refund')
       case 'transfer_out':
-        return 'Transferencia Enviada'
+        return t('walletDetails.transferOut')
       case 'transfer_in':
-        return 'Transferencia Recibida'
+        return t('walletDetails.transferIn')
       default:
         return type
     }
@@ -163,7 +163,7 @@ export default function WalletDetailsScreen() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-MX', {
+    return date.toLocaleDateString(i18n.locale === 'es' ? 'es-MX' : 'en-US', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -177,7 +177,7 @@ export default function WalletDetailsScreen() {
     
     // Get items summary
     const itemsSummary = item.movement_items
-      ?.map(mi => `${mi.quantity}x ${mi.base_product?.name || 'Producto'}`)
+      ?.map(mi => `${mi.quantity}x ${mi.base_product?.name || t('refundScreen.product')}`)
       .join(', ')
 
     return (
@@ -221,9 +221,9 @@ export default function WalletDetailsScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#DC2626" />
-        <Text style={styles.errorText}>Wallet no encontrada</Text>
+        <Text style={styles.errorText}>{t('walletDetails.walletNotFound')}</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Volver</Text>
+          <Text style={styles.backButtonText}>{t('common.back')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -238,7 +238,7 @@ export default function WalletDetailsScreen() {
         <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalles de Wallet</Text>
+        <Text style={styles.headerTitle}>{t('walletDetails.title')}</Text>
         <TouchableOpacity style={styles.headerButton} onPress={handleToggleStatus}>
           <Ionicons 
             name={wallet.status === 'active' ? 'lock-open-outline' : 'lock-closed-outline'} 
@@ -268,7 +268,7 @@ export default function WalletDetailsScreen() {
               </View>
               
               <Text style={styles.walletName}>
-                {wallet.name || 'Sin nombre'}
+                {wallet.name || t('walletDetails.noName')}
               </Text>
               
               {wallet.phone && (
@@ -285,7 +285,7 @@ export default function WalletDetailsScreen() {
               {wallet.status === 'blocked' && (
                 <View style={styles.statusBadge}>
                   <Ionicons name="lock-closed" size={14} color="#DC2626" />
-                  <Text style={styles.statusText}>Wallet Bloqueada</Text>
+                  <Text style={styles.statusText}>{t('walletDetails.blocked')}</Text>
                 </View>
               )}
 
@@ -299,7 +299,7 @@ export default function WalletDetailsScreen() {
                 ) : (
                   <View style={styles.noQrInfo}>
                     <Ionicons name="qr-code-outline" size={20} color="#D97706" />
-                    <Text style={styles.noQrText}>Sin QR asignado</Text>
+                    <Text style={styles.noQrText}>{t('walletDetails.noQrAssigned')}</Text>
                   </View>
                 )}
               </View>
@@ -322,14 +322,14 @@ export default function WalletDetailsScreen() {
                   <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
                     <Ionicons name="qr-code" size={22} color="#4F46E5" />
                   </View>
-                  <Text style={styles.actionText}>Asignar QR</Text>
+                  <Text style={styles.actionText}>{t('walletDetails.assignQr')}</Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {/* Movements Header */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Movimientos</Text>
+              <Text style={styles.sectionTitle}>{t('walletDetails.movements')}</Text>
               <Text style={styles.sectionCount}>{movements.length}</Text>
             </View>
           </>
@@ -337,7 +337,7 @@ export default function WalletDetailsScreen() {
         ListEmptyComponent={() => (
           <View style={styles.emptyMovements}>
             <Ionicons name="receipt-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>Sin movimientos</Text>
+            <Text style={styles.emptyText}>{t('walletDetails.noMovements')}</Text>
           </View>
         )}
         contentContainerStyle={styles.listContent}

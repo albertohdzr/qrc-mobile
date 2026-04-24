@@ -12,6 +12,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
 import { EventArea } from '@/types/database'
+import { t } from '@/lib/i18n'
 
 export default function POSScreen() {
   const { currentOrg, currentEvent, canAccessFeature, selectedAreaId, setSelectedAreaId, refreshMembership } = useAuthStore()
@@ -82,7 +83,7 @@ export default function POSScreen() {
         >
           <Ionicons name="business-outline" size={18} color="#6B7280" />
           <Text style={styles.contextValue} numberOfLines={1}>
-            {currentOrg?.name ?? 'Seleccionar'}
+            {currentOrg?.name ?? t('common.select')}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
         </TouchableOpacity>
@@ -93,7 +94,7 @@ export default function POSScreen() {
         >
           <Ionicons name="calendar-outline" size={18} color="#6B7280" />
           <Text style={styles.contextValue} numberOfLines={1}>
-            {currentEvent?.name ?? 'Seleccionar'}
+            {currentEvent?.name ?? t('common.select')}
           </Text>
           <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
         </TouchableOpacity>
@@ -103,9 +104,9 @@ export default function POSScreen() {
       {!currentOrg || !currentEvent ? (
         <View style={styles.emptyState}>
           <Ionicons name="alert-circle-outline" size={64} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>Configuración requerida</Text>
+          <Text style={styles.emptyTitle}>{t('pos.configRequired')}</Text>
           <Text style={styles.emptySubtitle}>
-            Selecciona una organización y un evento para comenzar a usar el POS
+            {t('pos.selectOrgAndEvent')}
           </Text>
         </View>
       ) : (
@@ -117,7 +118,7 @@ export default function POSScreen() {
           {/* Areas Selector */}
           {areas.length > 0 && (
             <View style={styles.areasSection}>
-              <Text style={styles.sectionTitle}>Área</Text>
+              <Text style={styles.sectionTitle}>{t('pos.area')}</Text>
               <ScrollView 
                 ref={areaScrollRef}
                 horizontal 
@@ -157,15 +158,15 @@ export default function POSScreen() {
             <View style={styles.scanIconContainer}>
               <Ionicons name="qr-code-outline" size={48} color="#fff" />
             </View>
-            <Text style={styles.scanTitle}>Escanear para Vender</Text>
+            <Text style={styles.scanTitle}>{t('pos.scanToSell')}</Text>
             <Text style={styles.scanSubtitle}>
-              Escanea el QR de la pulsera o tarjeta para realizar una venta
+              {t('pos.scanToSellSubtitle')}
             </Text>
           </TouchableOpacity>
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
-            <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+            <Text style={styles.sectionTitle}>{t('pos.quickActions')}</Text>
             
             <View style={styles.actionsGrid}>
               <TouchableOpacity 
@@ -175,7 +176,7 @@ export default function POSScreen() {
                 <View style={[styles.actionIcon, { backgroundColor: '#EEF2FF' }]}>
                   <Ionicons name="search-outline" size={24} color="#4F46E5" />
                 </View>
-                <Text style={styles.actionText}>Buscar Wallet</Text>
+                <Text style={styles.actionText}>{t('pos.searchWallet')}</Text>
               </TouchableOpacity>
 
               {canAccessFeature('transfer') && (
@@ -186,7 +187,7 @@ export default function POSScreen() {
                   <View style={[styles.actionIcon, { backgroundColor: '#FEF3C7' }]}>
                     <Ionicons name="swap-horizontal-outline" size={24} color="#D97706" />
                   </View>
-                  <Text style={styles.actionText}>Transferencia</Text>
+                  <Text style={styles.actionText}>{t('pos.transfer')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -197,7 +198,7 @@ export default function POSScreen() {
                 <View style={[styles.actionIcon, { backgroundColor: '#D1FAE5' }]}>
                   <Ionicons name="pricetag-outline" size={24} color="#059669" />
                 </View>
-                <Text style={styles.actionText}>Productos</Text>
+                <Text style={styles.actionText}>{t('pos.products')}</Text>
               </TouchableOpacity>
 
 
@@ -209,7 +210,7 @@ export default function POSScreen() {
                   <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
                     <Ionicons name="refresh-outline" size={24} color="#DC2626" />
                   </View>
-                  <Text style={styles.actionText}>Reembolso</Text>
+                  <Text style={styles.actionText}>{t('pos.refund')}</Text>
                 </TouchableOpacity>
               )}
             </View>

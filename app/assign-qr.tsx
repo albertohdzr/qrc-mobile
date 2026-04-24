@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { Ionicons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { t } from '@/lib/i18n'
 import { router, useLocalSearchParams } from 'expo-router'
 import React, { useEffect, useRef, useState } from 'react'
 import {
@@ -48,7 +49,7 @@ export default function AssignQrScreen() {
   const balanceCents = parseInt(
     (isExistingWallet ? params.balanceCents : params.amountCents) ?? '0'
   )
-  const walletLabel = params.walletName || params.name || params.phone || 'Nueva Wallet'
+  const walletLabel = params.walletName || params.name || params.phone || t('createWallet.newWallet')
 
   useEffect(() => {
     return () => {
@@ -68,10 +69,10 @@ export default function AssignQrScreen() {
 
       if (!isValidCode5(code5)) {
         Alert.alert(
-          'QR Inválido',
-          'No se pudo identificar un código válido en el QR escaneado.',
+          t('scanner.invalidQr'),
+          t('scanner.invalidQrMessage'),
           [{
-            text: 'Reintentar',
+            text: t('common.retry'),
             onPress: () => {
               isProcessingRef.current = false
               setIsScanning(true)
@@ -83,7 +84,7 @@ export default function AssignQrScreen() {
       }
 
       if (!currentOrg || (!isExistingWallet && !currentEvent)) {
-        Alert.alert('Error', 'Datos incompletos')
+        Alert.alert(t('common.error'), t('assignQr.incompleteData'))
         setIsLoading(false)
         return
       }
@@ -98,10 +99,10 @@ export default function AssignQrScreen() {
 
       if (qrError || !qr) {
         Alert.alert(
-          'QR No Encontrado',
-          'Este QR no pertenece a tu organización o no existe.',
+          t('assignQr.qrNotFound'),
+          t('assignQr.qrNotFoundMessage'),
           [{
-            text: 'Reintentar',
+            text: t('common.retry'),
             onPress: () => {
               isProcessingRef.current = false
               setIsScanning(true)
@@ -115,10 +116,10 @@ export default function AssignQrScreen() {
       // Verificar que el QR esté disponible (no permitir reasignar)
       if (qr.status === 'assigned' && qr.wallet_id) {
         Alert.alert(
-          'QR No Disponible',
-          'Este QR ya está asignado a otra wallet. Por favor escanea un QR disponible.',
+          t('assignQr.qrNotAvailable'),
+          t('assignQr.qrNotAvailableMessage'),
           [{
-            text: 'Reintentar',
+            text: t('common.retry'),
             onPress: () => {
               isProcessingRef.current = false
               setIsScanning(true)
@@ -131,10 +132,10 @@ export default function AssignQrScreen() {
 
       if (qr.status === 'inactive') {
         Alert.alert(
-          'QR Inactivo',
-          'Este QR está inactivo y no puede ser asignado.',
+          t('assignQr.qrInactive'),
+          t('assignQr.qrInactiveMessage'),
           [{
-            text: 'Reintentar',
+            text: t('common.retry'),
             onPress: () => {
               isProcessingRef.current = false
               setIsScanning(true)
@@ -150,9 +151,9 @@ export default function AssignQrScreen() {
     } catch (error: any) {
       Alert.alert(
         'Error',
-        error.message || 'Ocurrió un error al procesar el QR.',
+        error.message || t('scanner.processingError'),
         [{
-          text: 'Reintentar',
+          text: t('common.retry'),
           onPress: () => {
             isProcessingRef.current = false
             setIsScanning(true)
@@ -168,11 +169,11 @@ export default function AssignQrScreen() {
     
     try {
       if (!currentOrg) {
-        throw new Error('Datos incompletos')
+        throw new Error(t('assignQr.incompleteData'))
       }
 
       if (!isExistingWallet && !currentEvent) {
-        throw new Error('Datos incompletos')
+        throw new Error(t('assignQr.incompleteData'))
       }
 
       const name = params.name?.trim() || null
@@ -183,7 +184,7 @@ export default function AssignQrScreen() {
       if (!wallet && !walletId) {
         const event = currentEvent
         if (!event) {
-          throw new Error('Datos incompletos')
+          throw new Error(t('assignQr.incompleteData'))
         }
 
         const { data: newWallet, error: walletError } = await (supabase
@@ -204,15 +205,15 @@ export default function AssignQrScreen() {
 
           if (walletError.code === '23505') {
             Alert.alert(
-              'Error',
-              'Ya existe una wallet con este teléfono en esta organización',
+              t('common.error'),
+              t('createWallet.duplicatePhone'),
               [
                 {
-                  text: 'Editar datos',
+                  text: t('createWallet.editData'),
                   onPress: () => router.back(),
                 },
                 {
-                  text: 'Reintentar',
+                  text: t('common.retry'),
                   onPress: () => {
                     isProcessingRef.current = false
                     setIsScanning(true)
@@ -250,7 +251,7 @@ export default function AssignQrScreen() {
       }
 
       if (!walletId) {
-        throw new Error('No se pudo crear la wallet')
+        throw new Error(t('assignQr.couldNotCreateWallet'))
       }
 
       // Actualizar el QR con el wallet_id y cambiar status a 'assigned'
@@ -268,36 +269,36 @@ export default function AssignQrScreen() {
 
       if (isExistingWallet) {
         Alert.alert(
-          'QR Asignado',
-          `El QR ${code5} fue asignado a la wallet "${walletLabel}".`,
+          t('assignQr.qrAssigned'),
+          t('assignQr.qrAssignedMessage', { code: code5, wallet: walletLabel }),
           [
             {
-              text: 'Volver',
+              text: t('common.back'),
               onPress: () => router.back(),
             },
           ]
         )
       } else {
         Alert.alert(
-          '¡Wallet Creada!',
-          `La wallet "${walletLabel}" ha sido creada y asociada al QR ${code5}.\n\nSaldo: ${formatCurrency(balanceCents)}`,
+          t('assignQr.walletCreated'),
+          t('assignQr.walletCreatedMessage', { wallet: walletLabel, code: code5, balance: formatCurrency(balanceCents) }),
           [
             {
-              text: 'Crear Otra',
+              text: t('assignQr.createAnother'),
               onPress: () => {
                 router.dismissAll()
                 setTimeout(() => router.push('/create-wallet'), 100)
               },
             },
             {
-              text: 'Volver a Wallets',
+              text: t('assignQr.goToWallets'),
               onPress: () => router.dismissAll(),
             },
           ]
         )
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'No se pudo asignar el QR')
+      Alert.alert(t('common.error'), error.message || t('assignQr.couldNotAssign'))
       isProcessingRef.current = false
       setIsScanning(true)
     } finally {
@@ -318,21 +319,21 @@ export default function AssignQrScreen() {
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
           <Ionicons name="camera-outline" size={64} color="#6B7280" />
-          <Text style={styles.permissionTitle}>Permiso de Cámara</Text>
+          <Text style={styles.permissionTitle}>{t('scanner.cameraPermission')}</Text>
           <Text style={styles.permissionText}>
-            Necesitamos acceso a la cámara para escanear el código QR
+            {t('assignQr.cameraPermissionMessage')}
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
             onPress={requestPermission}
           >
-            <Text style={styles.permissionButtonText}>Permitir Cámara</Text>
+            <Text style={styles.permissionButtonText}>{t('scanner.allowCamera')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonText}>Volver</Text>
+            <Text style={styles.backButtonText}>{t('common.back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -362,7 +363,7 @@ export default function AssignQrScreen() {
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Asignar QR</Text>
+            <Text style={styles.headerTitle}>{t('assignQr.title')}</Text>
             <Text style={styles.headerSubtitle} numberOfLines={1}>
               {walletLabel}
             </Text>
@@ -398,7 +399,7 @@ export default function AssignQrScreen() {
             {isLoading && (
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>Asignando...</Text>
+                <Text style={styles.loadingText}>{t('assignQr.assigning')}</Text>
               </View>
             )}
           </View>
@@ -407,7 +408,7 @@ export default function AssignQrScreen() {
         {/* Instructions */}
         <View style={styles.instructions}>
           <Text style={styles.instructionsText}>
-            Escanea el QR que deseas asignar a esta wallet
+            {t('assignQr.scanInstructions')}
           </Text>
         </View>
       </View>

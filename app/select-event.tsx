@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { Event, EventStatus } from '@/types/database'
+import { t } from '@/lib/i18n'
+import i18n from '@/lib/i18n'
 
 export default function SelectEventScreen() {
   const { events, currentEvent, currentOrg, setCurrentEvent } = useAuthStore()
@@ -21,10 +23,10 @@ export default function SelectEventScreen() {
 
   const getStatusBadge = (status: EventStatus) => {
     const statusConfig: Record<EventStatus, { label: string; bg: string; text: string }> = {
-      draft: { label: 'Borrador', bg: '#F3F4F6', text: '#6B7280' },
-      active: { label: 'Activo', bg: '#D1FAE5', text: '#059669' },
-      paused: { label: 'Pausado', bg: '#FEF3C7', text: '#D97706' },
-      ended: { label: 'Finalizado', bg: '#FEE2E2', text: '#DC2626' },
+      draft: { label: t('selectEvent.draft'), bg: '#F3F4F6', text: '#6B7280' },
+      active: { label: t('selectEvent.active'), bg: '#D1FAE5', text: '#059669' },
+      paused: { label: t('selectEvent.paused'), bg: '#FEF3C7', text: '#D97706' },
+      ended: { label: t('selectEvent.ended'), bg: '#FEE2E2', text: '#DC2626' },
     }
     const config = statusConfig[status]
     return (
@@ -39,7 +41,7 @@ export default function SelectEventScreen() {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return null
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-MX', {
+    return date.toLocaleDateString(i18n.locale === 'es' ? 'es-MX' : 'en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -95,9 +97,9 @@ export default function SelectEventScreen() {
     return (
       <View style={styles.emptyState}>
         <Ionicons name="business-outline" size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Selecciona una organización</Text>
+        <Text style={styles.emptyTitle}>{t('selectEvent.selectOrgFirst')}</Text>
         <Text style={styles.emptySubtitle}>
-          Primero debes seleccionar una organización para ver sus eventos
+          {t('selectEvent.selectOrgFirstMessage')}
         </Text>
         <TouchableOpacity 
           style={styles.selectOrgButton}
@@ -106,7 +108,7 @@ export default function SelectEventScreen() {
             setTimeout(() => router.push('/select-org'), 100)
           }}
         >
-          <Text style={styles.selectOrgButtonText}>Seleccionar Organización</Text>
+          <Text style={styles.selectOrgButtonText}>{t('selectEvent.selectOrgButton')}</Text>
         </TouchableOpacity>
       </View>
     )
@@ -123,9 +125,9 @@ export default function SelectEventScreen() {
       {events.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>Sin eventos</Text>
+          <Text style={styles.emptyTitle}>{t('selectEvent.noEvents')}</Text>
           <Text style={styles.emptySubtitle}>
-            Esta organización no tiene eventos activos o en borrador
+            {t('selectEvent.noEventsMessage')}
           </Text>
         </View>
       ) : (

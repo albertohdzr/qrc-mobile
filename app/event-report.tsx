@@ -17,6 +17,8 @@ import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { supabase } from '@/lib/supabase'
 import { Event } from '@/types/database'
+import { t } from '@/lib/i18n'
+import i18n from '@/lib/i18n'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -99,21 +101,23 @@ const fmt = (cents: number): string => {
 
 const fmtDate = (dateStr: string): string => {
   const [y, m, d] = dateStr.split('-')
-  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+  const months = (t('eventReport.monthsShort') as unknown) as string[]
   return `${parseInt(d)} ${months[parseInt(m) - 1]}`
 }
 
 const fmtDateFull = (dateStr: string): string => {
   const [y, m, d] = dateStr.split('-')
-  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-  return `${parseInt(d)} de ${months[parseInt(m) - 1]}, ${y}`
+  const months = (t('eventReport.monthsFull') as unknown) as string[]
+  return i18n.locale === 'es'
+    ? `${parseInt(d)} de ${months[parseInt(m) - 1]}, ${y}`
+    : `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, { label: string; icon: IconName; color: string }> = {
-  qr: { label: 'QR / Pulsera', icon: 'qr-code', color: '#7C3AED' },
-  cash: { label: 'Efectivo', icon: 'cash', color: '#059669' },
-  unknown: { label: 'Desconocido', icon: 'help-circle', color: '#6B7280' },
-}
+const getPaymentMethodLabels = (): Record<string, { label: string; icon: IconName; color: string }> => ({
+  qr: { label: t('eventReport.pmQr'), icon: 'qr-code', color: '#7C3AED' },
+  cash: { label: t('eventReport.pmCash'), icon: 'cash', color: '#059669' },
+  unknown: { label: t('eventReport.pmUnknown'), icon: 'help-circle', color: '#6B7280' },
+})
 
 // ─── Component ──────────────────────────────────────────
 export default function EventReportScreen() {
@@ -158,7 +162,7 @@ export default function EventReportScreen() {
       setReport(data as EventReport)
     } catch (err) {
       console.error('Error fetching report:', err)
-      Alert.alert('Error', 'No se pudo cargar el reporte del evento.')
+      Alert.alert(t('common.error'), t('eventReport.couldNotLoadReport'))
     } finally {
       setIsLoadingReport(false)
       setRefreshing(false)
@@ -213,42 +217,43 @@ export default function EventReportScreen() {
         {/* KPI Grid */}
         <View style={styles.kpiGrid}>
           {renderKPICard(
-            'Ventas Totales',
+            t('eventReport.totalSales'),
             fmt(totals.sales_cents),
             'trending-up',
             '#059669',
             '#D1FAE5',
-            `${totals.sales_transactions} transacciones`
+            t('eventReport.transactions', { count: totals.sales_transactions.toString() })
           )}
           {renderKPICard(
-            'Depósitos / Recargas',
+            t('eventReport.deposits'),
             fmt(totals.deposits_cents),
             'arrow-down-circle',
             '#4F46E5',
             '#EEF2FF',
           )}
           {renderKPICard(
-            'Devoluciones',
+            t('eventReport.refunds'),
             fmt(totals.refunds_cents),
             'arrow-undo',
             '#DC2626',
             '#FEE2E2',
           )}
           {renderKPICard(
-            'Neto (Depósitos − Devol.)',
+            t('eventReport.netDepositsRefunds'),
             fmt(totals.net_cents),
             'wallet',
             '#D97706',
             '#FEF3C7',
-            `${totals.sales_items} artículos vendidos`
+            t('eventReport.itemsSold', { count: totals.sales_items.toString() })
           )}
         </View>
 
         {/* Payment Methods */}
         {payment_methods.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Métodos de Pago</Text>
+            <Text style={styles.sectionTitle}>{t('eventReport.paymentMethods')}</Text>
             {payment_methods.map((pm, idx) => {
+              const PAYMENT_METHOD_LABELS = getPaymentMethodLabels()
               const config = PAYMENT_METHOD_LABELS[pm.method] ?? PAYMENT_METHOD_LABELS.unknown
               const pct = totals.sales_cents > 0
                 ? ((pm.sales_cents / totals.sales_cents) * 100).toFixed(1)
@@ -277,7 +282,7 @@ export default function EventReportScreen() {
         {/* Daily Chart */}
         {daily.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Ventas por Día</Text>
+            <Text style={styles.sectionTitle}>{t('eventReport.salesByDay')}</Text>
             {daily.map((d, idx) => {
               const barWidth = Math.max((d.sales_cents / maxDailySales) * 100, 4)
               return (
@@ -296,26 +301,26 @@ export default function EventReportScreen() {
         {/* Daily Transactions Detail */}
         {daily.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Detalle Diario</Text>
+            <Text style={styles.sectionTitle}>{t('eventReport.dailyDetail')}</Text>
             {daily.map((d, idx) => (
               <View key={idx} style={styles.dailyDetailCard}>
                 <Text style={styles.dailyDetailDate}>{fmtDateFull(d.date)}</Text>
                 <View style={styles.dailyDetailGrid}>
                   <View style={styles.dailyDetailItem}>
                     <Text style={styles.dailyDetailValue}>{fmt(d.sales_cents)}</Text>
-                    <Text style={styles.dailyDetailLabel}>Ventas</Text>
+                    <Text style={styles.dailyDetailLabel}>{t('eventReport.sales')}</Text>
                   </View>
                   <View style={styles.dailyDetailItem}>
                     <Text style={styles.dailyDetailValue}>{fmt(d.deposits_cents)}</Text>
-                    <Text style={styles.dailyDetailLabel}>Depósitos</Text>
+                    <Text style={styles.dailyDetailLabel}>{t('eventReport.depositsLabel')}</Text>
                   </View>
                   <View style={styles.dailyDetailItem}>
                     <Text style={[styles.dailyDetailValue, { color: '#DC2626' }]}>{fmt(d.refunds_cents)}</Text>
-                    <Text style={styles.dailyDetailLabel}>Devol.</Text>
+                    <Text style={styles.dailyDetailLabel}>{t('eventReport.refundsShort')}</Text>
                   </View>
                   <View style={styles.dailyDetailItem}>
                     <Text style={styles.dailyDetailValue}>{d.transactions_count}</Text>
-                    <Text style={styles.dailyDetailLabel}>Transacc.</Text>
+                    <Text style={styles.dailyDetailLabel}>{t('eventReport.transactionsShort')}</Text>
                   </View>
                 </View>
               </View>
@@ -336,11 +341,11 @@ export default function EventReportScreen() {
         {products_total.length === 0 ? (
           <View style={styles.emptyTab}>
             <Ionicons name="pricetags-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyTabText}>Sin ventas de productos</Text>
+            <Text style={styles.emptyTabText}>{t('eventReport.noProductSales')}</Text>
           </View>
         ) : (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Productos Vendidos</Text>
+            <Text style={styles.sectionTitle}>{t('eventReport.productsSold')}</Text>
             {products_total.map((p, idx) => {
               const barWidth = Math.max((p.sales_cents / maxSales) * 100, 4)
               return (
@@ -354,16 +359,16 @@ export default function EventReportScreen() {
                       <View style={[styles.productBar, { width: `${barWidth}%` }]} />
                     </View>
                     <View style={styles.productStats}>
-                      <Text style={styles.productQty}>{p.quantity} uds.</Text>
+                      <Text style={styles.productQty}>{p.quantity} {t('eventReport.units')}</Text>
                       {p.refunds_cents > 0 && (
-                        <Text style={styles.productRefund}>-{fmt(p.refunds_cents)} devol.</Text>
+                        <Text style={styles.productRefund}>-{fmt(p.refunds_cents)} {t('eventReport.refundShort')}</Text>
                       )}
                     </View>
                   </View>
                   <View style={styles.productAmounts}>
                     <Text style={styles.productSales}>{fmt(p.sales_cents)}</Text>
                     {p.refunds_cents > 0 && (
-                      <Text style={styles.productNet}>Neto: {fmt(p.net_cents)}</Text>
+                      <Text style={styles.productNet}>{t('eventReport.net')}: {fmt(p.net_cents)}</Text>
                     )}
                   </View>
                 </View>
@@ -385,11 +390,11 @@ export default function EventReportScreen() {
         {areas_total.length === 0 ? (
           <View style={styles.emptyTab}>
             <Ionicons name="map-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyTabText}>Sin datos de áreas</Text>
+            <Text style={styles.emptyTabText}>{t('eventReport.noAreaData')}</Text>
           </View>
         ) : (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Ventas por Área</Text>
+            <Text style={styles.sectionTitle}>{t('eventReport.salesByArea')}</Text>
             {areas_total.map((a, idx) => {
               const pct = ((a.sales_cents / totalSales) * 100).toFixed(1)
               const areaColors = ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#3B82F6']
@@ -400,7 +405,7 @@ export default function EventReportScreen() {
                     <View style={[styles.areaColorDot, { backgroundColor: color }]} />
                     <View>
                       <Text style={styles.areaName}>{a.name}</Text>
-                      <Text style={styles.areaQty}>{a.quantity} artículos</Text>
+                      <Text style={styles.areaQty}>{a.quantity} {t('eventReport.items')}</Text>
                     </View>
                   </View>
                   <View style={styles.areaRight}>
@@ -428,11 +433,11 @@ export default function EventReportScreen() {
         {cashiers.length === 0 ? (
           <View style={styles.emptyTab}>
             <Ionicons name="people-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyTabText}>Sin datos de cajeros</Text>
+            <Text style={styles.emptyTabText}>{t('eventReport.noCashierData')}</Text>
           </View>
         ) : (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Rendimiento de Cajeros</Text>
+            <Text style={styles.sectionTitle}>{t('eventReport.cashierPerformance')}</Text>
             {cashiers.map((c, idx) => {
               const barPct = Math.max((c.sales_cents / maxSales) * 100, 4)
               const avatarColors = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981']
@@ -450,8 +455,8 @@ export default function EventReportScreen() {
                       <View style={[styles.cashierBar, { width: `${barPct}%`, backgroundColor: color }]} />
                     </View>
                     <View style={styles.cashierStats}>
-                      <Text style={styles.cashierStat}>{c.transactions_count} ventas</Text>
-                      <Text style={styles.cashierStat}>{c.items_count} artículos</Text>
+                      <Text style={styles.cashierStat}>{t('eventReport.salesCount', { count: c.transactions_count.toString() })}</Text>
+                      <Text style={styles.cashierStat}>{t('eventReport.itemsCount', { count: c.items_count.toString() })}</Text>
                     </View>
                   </View>
                   <Text style={styles.cashierAmount}>{fmt(c.sales_cents)}</Text>
@@ -466,19 +471,19 @@ export default function EventReportScreen() {
 
   // ─── Tabs Config ────────────────────────────────────────
   const TABS: { key: TabKey; label: string; icon: IconName }[] = [
-    { key: 'overview', label: 'General', icon: 'grid' },
-    { key: 'products', label: 'Productos', icon: 'pricetags' },
-    { key: 'areas', label: 'Áreas', icon: 'map' },
-    { key: 'cashiers', label: 'Cajeros', icon: 'people' },
+    { key: 'overview', label: t('eventReport.tabOverview'), icon: 'grid' },
+    { key: 'products', label: t('eventReport.tabProducts'), icon: 'pricetags' },
+    { key: 'areas', label: t('eventReport.tabAreas'), icon: 'map' },
+    { key: 'cashiers', label: t('eventReport.tabCashiers'), icon: 'people' },
   ]
 
   // ─── Event Picker Modal ─────────────────────────────────
   const renderEventPicker = () => {
     const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-      draft: { label: 'Borrador', bg: '#F3F4F6', text: '#6B7280' },
-      active: { label: 'Activo', bg: '#D1FAE5', text: '#059669' },
-      paused: { label: 'Pausado', bg: '#FEF3C7', text: '#D97706' },
-      ended: { label: 'Finalizado', bg: '#FEE2E2', text: '#DC2626' },
+      draft: { label: t('eventReport.statusDraft'), bg: '#F3F4F6', text: '#6B7280' },
+      active: { label: t('eventReport.statusActive'), bg: '#D1FAE5', text: '#059669' },
+      paused: { label: t('eventReport.statusPaused'), bg: '#FEF3C7', text: '#D97706' },
+      ended: { label: t('eventReport.statusEnded'), bg: '#FEE2E2', text: '#DC2626' },
     }
 
     return (
@@ -491,8 +496,8 @@ export default function EventReportScreen() {
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerContent}>
             <View style={styles.pickerHandle} />
-            <Text style={styles.pickerTitle}>Seleccionar Evento</Text>
-            <Text style={styles.pickerSubtitle}>Elige un evento para ver su reporte</Text>
+            <Text style={styles.pickerTitle}>{t('eventReport.selectEvent')}</Text>
+            <Text style={styles.pickerSubtitle}>{t('eventReport.selectEventSubtitle')}</Text>
 
             <FlatList
               data={allEvents}
@@ -525,7 +530,7 @@ export default function EventReportScreen() {
                         </View>
                         {item.starts_at && (
                           <Text style={styles.pickerItemDate}>
-                            {new Date(item.starts_at).toLocaleDateString('es-MX', {
+                            {new Date(item.starts_at).toLocaleDateString(i18n.locale === 'es' ? 'es-MX' : 'en-US', {
                               day: 'numeric', month: 'short', year: 'numeric',
                             })}
                           </Text>
@@ -541,7 +546,7 @@ export default function EventReportScreen() {
               ListEmptyComponent={
                 <View style={styles.emptyTab}>
                   <Ionicons name="calendar-outline" size={48} color="#D1D5DB" />
-                  <Text style={styles.emptyTabText}>Sin eventos</Text>
+                  <Text style={styles.emptyTabText}>{t('selectEvent.noEvents')}</Text>
                 </View>
               }
             />
@@ -550,7 +555,7 @@ export default function EventReportScreen() {
               style={styles.pickerCancel}
               onPress={() => setShowEventPicker(false)}
             >
-              <Text style={styles.pickerCancelText}>Cancelar</Text>
+              <Text style={styles.pickerCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -563,7 +568,7 @@ export default function EventReportScreen() {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="business-outline" size={64} color="#D1D5DB" />
-        <Text style={styles.emptyTitle}>Sin organización</Text>
+        <Text style={styles.emptyTitle}>{t('eventReport.noOrg')}</Text>
       </View>
     )
   }
@@ -576,7 +581,7 @@ export default function EventReportScreen() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Reportes</Text>
+          <Text style={styles.headerTitle}>{t('eventReport.title')}</Text>
           <Text style={styles.headerSubtitle}>{currentOrg.name}</Text>
         </View>
         {selectedEvent && !isLoadingReport && (
@@ -598,11 +603,11 @@ export default function EventReportScreen() {
           </View>
           <View>
             <Text style={styles.eventSelectorLabel}>
-              {selectedEvent ? selectedEvent.name : 'Seleccionar evento'}
+              {selectedEvent ? selectedEvent.name : t('eventReport.selectEvent')}
             </Text>
             {selectedEvent?.starts_at && (
               <Text style={styles.eventSelectorDate}>
-                {new Date(selectedEvent.starts_at).toLocaleDateString('es-MX', {
+                {new Date(selectedEvent.starts_at).toLocaleDateString(i18n.locale === 'es' ? 'es-MX' : 'en-US', {
                   day: 'numeric', month: 'long', year: 'numeric',
                 })}
               </Text>
@@ -618,22 +623,22 @@ export default function EventReportScreen() {
           <View style={styles.emptyIconCircle}>
             <Ionicons name="bar-chart-outline" size={56} color="#C7D2FE" />
           </View>
-          <Text style={styles.emptyTitle}>Selecciona un Evento</Text>
+          <Text style={styles.emptyTitle}>{t('eventReport.selectAnEvent')}</Text>
           <Text style={styles.emptySubtitle}>
-            Elige un evento para ver sus estadísticas y métricas de rendimiento
+            {t('eventReport.selectAnEventSubtitle')}
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => setShowEventPicker(true)}
           >
             <Ionicons name="calendar" size={18} color="#fff" />
-            <Text style={styles.emptyButtonText}>Elegir Evento</Text>
+            <Text style={styles.emptyButtonText}>{t('eventReport.chooseEvent')}</Text>
           </TouchableOpacity>
         </View>
       ) : isLoadingReport ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4F46E5" />
-          <Text style={styles.loadingText}>Generando reporte...</Text>
+          <Text style={styles.loadingText}>{t('eventReport.generatingReport')}</Text>
         </View>
       ) : report ? (
         <View style={{ flex: 1 }}>

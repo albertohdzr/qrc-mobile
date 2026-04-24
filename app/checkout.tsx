@@ -6,6 +6,7 @@ import { EventArea, EventProduct, Product } from '@/types/database'
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { router } from 'expo-router'
+import { t } from '@/lib/i18n'
 import React, { useEffect, useState, useMemo } from 'react'
 import {
   ActivityIndicator,
@@ -137,7 +138,7 @@ export default function CheckoutScreen() {
       setProducts((data as ProductWithBase[]) ?? [])
     } catch (error) {
       console.error('Error loading products:', error)
-      Alert.alert('Error', 'No se pudieron cargar los productos')
+      Alert.alert(t('common.error'), t('checkout.couldNotLoadProducts'))
     } finally {
       setIsLoadingProducts(false)
     }
@@ -149,7 +150,7 @@ export default function CheckoutScreen() {
       const currentItem = items.find(i => i.eventProduct.id === product.id)
       const currentQty = currentItem?.quantity ?? 0
       if (currentQty >= product.stock) {
-        Alert.alert('Sin Stock', 'No hay suficiente stock disponible')
+        Alert.alert(t('checkout.noStock'), t('checkout.noStockMessage'))
         return
       }
     }
@@ -160,21 +161,21 @@ export default function CheckoutScreen() {
   const handleProcessPayment = async () => {
     if (!scannedCode5 || !currentOrg || !currentEvent) return
     if (items.length === 0) {
-      Alert.alert('Carrito Vacío', 'Agrega productos al carrito para continuar')
+      Alert.alert(t('checkout.emptyCart'), t('checkout.emptyCartMessage'))
       return
     }
     if (!hasEnoughBalance()) {
-      Alert.alert('Saldo Insuficiente', 'La wallet no tiene saldo suficiente para esta compra')
+      Alert.alert(t('checkout.insufficientBalance'), t('checkout.insufficientBalanceMessage'))
       return
     }
 
     Alert.alert(
-      'Confirmar Pago',
-      `¿Procesar pago de ${formatCurrency(getEffectiveTotalCents())}?`,
+      t('checkout.confirmPayment'),
+      t('checkout.processPaymentConfirm', { amount: formatCurrency(getEffectiveTotalCents()) }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmar',
+          text: t('common.confirm'),
           onPress: async () => {
             setIsProcessing(true)
             try {
@@ -190,24 +191,24 @@ export default function CheckoutScreen() {
               })
 
               if (!result.success) {
-                Alert.alert('Error', result.error || 'No se pudo procesar el pago')
+                Alert.alert(t('common.error'), result.error || t('checkout.paymentError'))
                 return
               }
 
               // Mostrar éxito
               Alert.alert(
-                '¡Pago Exitoso!',
-                `Se cobraron ${formatCurrency(result.movement!.amountCents)}\n\nNuevo saldo: ${formatCurrency(result.movement!.newBalanceCents ?? 0)}`,
+                t('checkout.paymentSuccess'),
+                t('checkout.paymentSuccessMessage', { amount: formatCurrency(result.movement!.amountCents), newBalance: formatCurrency(result.movement!.newBalanceCents ?? 0) }),
                 [
                   {
-                    text: 'Nueva Venta',
+                    text: t('checkout.newSale'),
                     onPress: () => {
                       clearWallet()
                       router.replace('/scanner')
                     },
                   },
                   {
-                    text: 'Volver al Inicio',
+                    text: t('checkout.goHome'),
                     onPress: () => {
                       clearWallet()
                       router.dismissAll()
@@ -216,7 +217,7 @@ export default function CheckoutScreen() {
                 ]
               )
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Error al procesar el pago')
+              Alert.alert(t('common.error'), error.message || t('checkout.paymentProcessingError'))
             } finally {
               setIsProcessing(false)
             }
@@ -228,12 +229,12 @@ export default function CheckoutScreen() {
 
   const handleCancel = () => {
     Alert.alert(
-      'Cancelar Venta',
-      '¿Estás seguro de que quieres cancelar esta venta?',
+      t('checkout.cancelSale'),
+      t('checkout.cancelSaleConfirm'),
       [
-        { text: 'No', style: 'cancel' },
+        { text: t('common.no'), style: 'cancel' },
         {
-          text: 'Sí, Cancelar',
+          text: t('checkout.yesCancelSale'),
           style: 'destructive',
           onPress: () => {
             clearWallet()
@@ -280,12 +281,12 @@ export default function CheckoutScreen() {
           )}
           {product.stock === 0 && (
             <View style={styles.stockBadge}>
-              <Text style={styles.stockBadgeText}>Agotado</Text>
+              <Text style={styles.stockBadgeText}>{t('checkout.soldOut')}</Text>
             </View>
           )}
           {product.is_pass && (
             <View style={styles.passProductBadge}>
-              <Text style={styles.passProductBadgeText}>🎫 Pase</Text>
+              <Text style={styles.passProductBadgeText}>{t('checkout.pass')}</Text>
             </View>
           )}
         </View>
@@ -388,7 +389,7 @@ export default function CheckoutScreen() {
               {walletName || walletPhone || `QR: ${scannedCode5}`}
             </Text>
             <Text style={styles.walletBalance}>
-              Saldo: {formatCurrency(walletBalanceCents)}
+            Saldo: {formatCurrency(walletBalanceCents)}
             </Text>
           </View>
         </View>
@@ -400,7 +401,7 @@ export default function CheckoutScreen() {
       {/* Products */}
       <View style={styles.productsSection}>
         <View style={styles.productsHeader}>
-          <Text style={styles.sectionTitle}>Productos</Text>
+          <Text style={styles.sectionTitle}>{t('checkout.products')}</Text>
           <View style={styles.resultsBadge}>
             <Text style={styles.resultsBadgeText}>{filteredProducts.length}</Text>
           </View>
@@ -409,7 +410,7 @@ export default function CheckoutScreen() {
           <Ionicons name="search-outline" size={18} color="#9CA3AF" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por nombre o descripcion..."
+            placeholder={t('checkout.searchPlaceholder')}
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -432,7 +433,7 @@ export default function CheckoutScreen() {
                 onPress={() => setSelectedArea(null)}
               >
                 <Text style={[styles.areaChipText, !selectedArea && styles.areaChipTextActive]}>
-                  Todos
+                  {t('common.all')}
                 </Text>
               </TouchableOpacity>
               {sortedAreas.map((area) => (
@@ -454,7 +455,7 @@ export default function CheckoutScreen() {
         ) : filteredProducts.length === 0 ? (
           <View style={styles.emptyProducts}>
             <Ionicons name="pricetag-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No hay productos disponibles</Text>
+            <Text style={styles.emptyText}>{t('checkout.noProducts')}</Text>
           </View>
         ) : (
           <FlatList
@@ -473,11 +474,11 @@ export default function CheckoutScreen() {
       <View style={styles.footer}>
         <View style={styles.footerSummary}>
           <Text style={styles.footerLabel}>
-            Total ({getItemCount()} items)
+            {t('checkout.totalItems', { count: getItemCount() })}
           </Text>
           <Text style={styles.footerTotal}>
             {effectiveTotalCents < totalCents
-              ? `${formatCurrency(effectiveTotalCents)} (${formatCurrency(totalCents - effectiveTotalCents)} en pases)`
+              ? `${formatCurrency(effectiveTotalCents)} (${formatCurrency(totalCents - effectiveTotalCents)} ${t('checkout.inPasses')})`
               : formatCurrency(effectiveTotalCents)}
           </Text>
         </View>
@@ -487,7 +488,7 @@ export default function CheckoutScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="cart" size={20} color="#fff" />
-          <Text style={styles.reviewButtonText}>Revisar carrito</Text>
+          <Text style={styles.reviewButtonText}>{t('checkout.reviewCart')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -502,7 +503,7 @@ export default function CheckoutScreen() {
           <View style={styles.modalSheet}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Carrito</Text>
+              <Text style={styles.modalTitle}>{t('checkout.cart')}</Text>
               <TouchableOpacity
                 style={styles.modalClose}
                 onPress={() => setIsCartOpen(false)}
@@ -515,7 +516,7 @@ export default function CheckoutScreen() {
               {items.length === 0 ? (
                 <View style={styles.emptyCart}>
                   <Text style={styles.emptyCartText}>
-                    Agrega productos al carrito
+                    {t('checkout.addToCart')}
                   </Text>
                 </View>
               ) : (
@@ -531,21 +532,21 @@ export default function CheckoutScreen() {
             <View style={styles.modalFooter}>
               <View style={styles.totals}>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Subtotal ({getItemCount()} items)</Text>
+                  <Text style={styles.totalLabel}>{t('checkout.subtotalItems', { count: getItemCount() })}</Text>
                   <Text style={styles.totalValue}>{formatCurrency(totalCents)}</Text>
                 </View>
                 {effectiveTotalCents < totalCents && (
                   <View style={styles.totalRow}>
-                    <Text style={[styles.totalLabel, { color: '#059669' }]}>Descuento por pases</Text>
+                    <Text style={[styles.totalLabel, { color: '#059669' }]}>{t('checkout.passDiscount')}</Text>
                     <Text style={[styles.totalValue, { color: '#059669' }]}>-{formatCurrency(totalCents - effectiveTotalCents)}</Text>
                   </View>
                 )}
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Total a cobrar</Text>
+                  <Text style={styles.totalLabel}>{t('checkout.totalToCharge')}</Text>
                   <Text style={styles.totalValue}>{formatCurrency(effectiveTotalCents)}</Text>
                 </View>
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Saldo después del pago</Text>
+                  <Text style={styles.totalLabel}>{t('checkout.balanceAfterPayment')}</Text>
                   <Text style={[
                     styles.totalValue,
                     remainingBalance < 0 && styles.insufficientBalance
@@ -557,7 +558,7 @@ export default function CheckoutScreen() {
 
               {items.length > 0 && (
                 <TouchableOpacity onPress={clearCart} style={styles.clearCartButton}>
-                  <Text style={styles.clearCartText}>Limpiar carrito</Text>
+                  <Text style={styles.clearCartText}>{t('checkout.clearCart')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -575,7 +576,7 @@ export default function CheckoutScreen() {
                   <>
                     <Ionicons name="card" size={24} color="#fff" />
                     <Text style={styles.payButtonText}>
-                      Cobrar {formatCurrency(effectiveTotalCents)}
+                      {t('checkout.charge')} {formatCurrency(effectiveTotalCents)}
                     </Text>
                   </>
                 )}

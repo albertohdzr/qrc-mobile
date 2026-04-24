@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { Organization, OrgRole } from '@/types/database'
+import { t } from '@/lib/i18n'
 
 export default function SelectOrgScreen() {
   const { organizations, currentOrg, setCurrentOrg } = useAuthStore()
@@ -21,9 +22,9 @@ export default function SelectOrgScreen() {
 
   const getRoleBadge = (role: OrgRole) => {
     const roleLabels: Record<OrgRole, string> = {
-      owner: 'Propietario',
-      admin: 'Admin',
-      cashier: 'Cajero',
+      owner: t('selectOrg.owner'),
+      admin: t('selectOrg.admin'),
+      cashier: t('selectOrg.cashier'),
     }
     const roleColors: Record<OrgRole, { bg: string; text: string }> = {
       owner: { bg: '#FEF3C7', text: '#D97706' },
@@ -75,9 +76,9 @@ export default function SelectOrgScreen() {
       {organizations.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="business-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>Sin organizaciones</Text>
+          <Text style={styles.emptyTitle}>{t('selectOrg.noOrgs')}</Text>
           <Text style={styles.emptySubtitle}>
-            No perteneces a ninguna organización todavía
+            {t('selectOrg.noOrgsMessage')}
           </Text>
         </View>
       ) : (

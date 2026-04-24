@@ -22,7 +22,7 @@ import {
 
 interface ProductWithBase extends EventProduct {
   base_product: Product
-  event_area?: EventArea | null
+  event_product_areas: { area_id: string; area: EventArea | null }[]
 }
 
 const STORAGE_BUCKET = 'storage'
@@ -95,7 +95,7 @@ export default function CheckoutScreen() {
           .select(`
             *,
             base_product:products(*),
-            event_area:event_areas(*)
+            event_product_areas(area_id, area:event_areas(*))
           `)
           .eq('event_id', currentEvent.id)
           .eq('org_id', currentOrg.id)
@@ -222,7 +222,7 @@ export default function CheckoutScreen() {
   const remainingBalance = walletBalanceCents - totalCents
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const filteredProducts = products.filter((product) => {
-    if (selectedArea && product.area_id !== selectedArea) return false
+    if (selectedArea && !product.event_product_areas?.some(epa => epa.area_id === selectedArea)) return false
     if (!normalizedQuery) return true
     const name = product.base_product.name?.toLowerCase() ?? ''
     const description = product.base_product.description?.toLowerCase() ?? ''
@@ -267,11 +267,15 @@ export default function CheckoutScreen() {
               Stock: {product.stock}
             </Text>
           )}
-          {product.event_area?.name && (
-            <View style={styles.areaBadge}>
-              <Text style={styles.areaBadgeText} numberOfLines={1}>
-                {product.event_area.name}
-              </Text>
+          {product.event_product_areas?.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+              {product.event_product_areas.map(epa => epa.area?.name ? (
+                <View key={epa.area_id} style={styles.areaBadge}>
+                  <Text style={styles.areaBadgeText} numberOfLines={1}>
+                    {epa.area.name}
+                  </Text>
+                </View>
+              ) : null)}
             </View>
           )}
         </View>

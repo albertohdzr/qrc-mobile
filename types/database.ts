@@ -150,16 +150,23 @@ export interface EventProduct {
   id: string
   org_id: string
   event_id: string
-  area_id: string | null
   base_product_id: string
   initial_stock: number | null
   stock: number | null
   price_cents: number
+  cost_cents: number | null
   status: ProductStatus
   created_by: string | null
   updated_by: string | null
   created_at: string
   updated_at: string
+}
+
+export interface EventProductArea {
+  id: string
+  event_product_id: string
+  area_id: string
+  created_at: string
 }
 
 export interface MovementItem {

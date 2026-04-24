@@ -17,7 +17,7 @@ import { EventProduct, Product, EventArea } from '@/types/database'
 
 interface ProductWithBase extends EventProduct {
   base_product: Product
-  event_area: EventArea | null
+  event_product_areas: { area_id: string; area: EventArea | null }[]
 }
 
 export default function EventProductsScreen() {
@@ -52,7 +52,7 @@ export default function EventProductsScreen() {
         .select(`
           *,
           base_product:products(*),
-          event_area:event_areas(*)
+          event_product_areas(area_id, area:event_areas(*))
         `)
         .eq('org_id', currentOrg.id)
         .eq('event_id', currentEvent.id)
@@ -68,7 +68,7 @@ export default function EventProductsScreen() {
   }
 
   const filteredProducts = selectedArea
-    ? products.filter(p => p.area_id === selectedArea)
+    ? products.filter(p => p.event_product_areas?.some(epa => epa.area_id === selectedArea))
     : products
 
   const renderProduct = ({ item }: { item: ProductWithBase }) => (
@@ -80,21 +80,23 @@ export default function EventProductsScreen() {
             {item.base_product.description}
           </Text>
         )}
-        <View style={styles.productMeta}>
-          {item.event_area && (
-            <View style={styles.areaBadge}>
-              <Text style={styles.areaBadgeText}>{item.event_area.name}</Text>
-            </View>
-          )}
-          {item.stock !== null && (
-            <Text style={[
-              styles.stockText,
-              item.stock === 0 && styles.stockEmpty
-            ]}>
-              Stock: {item.stock}
-            </Text>
-          )}
-        </View>
+        {item.event_product_areas?.length > 0 && (
+          <View style={styles.productMeta}>
+            {item.event_product_areas.map(epa => epa.area?.name ? (
+              <View key={epa.area_id} style={styles.areaBadge}>
+                <Text style={styles.areaBadgeText}>{epa.area.name}</Text>
+              </View>
+            ) : null)}
+          </View>
+        )}
+        {item.stock !== null && (
+          <Text style={[
+            styles.stockText,
+            item.stock === 0 && styles.stockEmpty
+          ]}>
+            Stock: {item.stock}
+          </Text>
+        )}
       </View>
       <View style={styles.productPriceContainer}>
         <Text style={styles.productPrice}>

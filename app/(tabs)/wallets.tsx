@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import {
   StyleSheet,
   View,
@@ -20,65 +20,146 @@ interface WalletWithQr extends Wallet {
   qrs: { code_5: string }[] | null
 }
 
+const PAGE_SIZE = 30
+
 export default function WalletsScreen() {
   const { currentOrg, currentEvent, canAccessFeature } = useAuthStore()
+
+  // Search
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Data
   const [wallets, setWallets] = useState<WalletWithQr[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [stats, setStats] = useState({ count: 0, totalBalance: 0 })
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const pageRef = useRef(0)
 
-  const loadWallets = async (showLoader = true) => {
+  // Stats (from separate lightweight query)
+  const [stats, setStats] = useState({ activeCount: 0, totalBalance: 0 })
+
+  // ── Debounce search ─────────────────────────────────────────
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(text.trim())
+    }, 400)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  // ── Load stats (lightweight, no pagination) ─────────────────
+  const loadStats = async () => {
     if (!currentOrg || !currentEvent) return
 
-    if (showLoader) setIsLoading(true)
+    try {
+      // Count active wallets
+      const { count: activeCount } = await (supabase
+        .from('wallets') as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', currentOrg.id)
+        .eq('event_id', currentEvent.id)
+        .eq('status', 'active')
+
+      // Sum all balances (using a manual approach since supabase-js doesn't have .sum())
+      // We fetch just balance_cents for ALL wallets (lightweight — no joins)
+      const { data: balanceData } = await (supabase
+        .from('wallets') as any)
+        .select('balance_cents')
+        .eq('org_id', currentOrg.id)
+        .eq('event_id', currentEvent.id)
+
+      const totalBalance = (balanceData ?? []).reduce(
+        (sum: number, w: any) => sum + (w.balance_cents || 0),
+        0
+      )
+
+      setStats({
+        activeCount: activeCount ?? 0,
+        totalBalance,
+      })
+    } catch (error) {
+      console.error('Error loading stats:', error)
+    }
+  }
+
+  // ── Load wallets (paginated) ────────────────────────────────
+  const loadWallets = async (page: number, search: string, append = false) => {
+    if (!currentOrg || !currentEvent) return
+
+    if (page === 0 && !append) setIsLoading(true)
 
     try {
-      let query = supabase
-        .from('wallets')
-        .select(`
-          *,
-          qrs(code_5)
-        `)
+      const from = page * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+
+      let query = (supabase
+        .from('wallets') as any)
+        .select(`*, qrs(code_5)`)
         .eq('org_id', currentOrg.id)
         .eq('event_id', currentEvent.id)
         .order('created_at', { ascending: false })
+        .range(from, to)
 
-      if (searchQuery.trim()) {
-        query = query.or(`name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`)
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
       }
 
       const { data, error } = await query
 
       if (error) throw error
 
-      const walletsData = (data as WalletWithQr[]) ?? []
-      setWallets(walletsData)
+      const newWallets = (data as WalletWithQr[]) ?? []
 
-      // Calculate stats
-      const totalBalance = walletsData.reduce((sum, w) => sum + w.balance_cents, 0)
-      setStats({
-        count: walletsData.filter(w => w.status === 'active').length,
-        totalBalance,
-      })
+      if (append) {
+        setWallets(prev => [...prev, ...newWallets])
+      } else {
+        setWallets(newWallets)
+      }
+
+      setHasMore(newWallets.length === PAGE_SIZE)
+      pageRef.current = page
     } catch (error) {
       console.error('Error loading wallets:', error)
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
+      setIsLoadingMore(false)
     }
   }
 
-  // Reload when screen comes into focus
+  // ── Reset & reload on context/search change ────────────────
   useFocusEffect(
     useCallback(() => {
-      loadWallets()
-    }, [currentOrg, currentEvent, searchQuery])
+      pageRef.current = 0
+      setHasMore(true)
+      loadWallets(0, debouncedSearch)
+      loadStats()
+    }, [currentOrg, currentEvent, debouncedSearch])
   )
 
+  // ── Pull to refresh ─────────────────────────────────────────
   const handleRefresh = () => {
     setIsRefreshing(true)
-    loadWallets(false)
+    pageRef.current = 0
+    setHasMore(true)
+    loadWallets(0, debouncedSearch)
+    loadStats()
+  }
+
+  // ── Infinite scroll ─────────────────────────────────────────
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore || isLoading) return
+    setIsLoadingMore(true)
+    loadWallets(pageRef.current + 1, debouncedSearch, true)
   }
 
   const handleWalletPress = (wallet: WalletWithQr) => {
@@ -158,6 +239,16 @@ export default function WalletsScreen() {
     )
   }
 
+  const renderFooter = () => {
+    if (!isLoadingMore) return null
+    return (
+      <View style={styles.loadMoreContainer}>
+        <ActivityIndicator size="small" color="#6B7280" />
+        <Text style={styles.loadMoreText}>Cargando más...</Text>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       {/* Header con contexto */}
@@ -203,10 +294,10 @@ export default function WalletsScreen() {
               placeholder="Buscar por nombre o teléfono..."
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={handleSearchChange}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <TouchableOpacity onPress={() => { setSearchQuery(''); setDebouncedSearch('') }}>
                 <Ionicons name="close-circle" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             )}
@@ -225,7 +316,7 @@ export default function WalletsScreen() {
           {/* Stats */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{stats.count}</Text>
+              <Text style={styles.statValue}>{stats.activeCount}</Text>
               <Text style={styles.statLabel}>Wallets Activas</Text>
             </View>
             <View style={styles.statCard}>
@@ -254,6 +345,9 @@ export default function WalletsScreen() {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.3}
+              ListFooterComponent={renderFooter}
               refreshControl={
                 <RefreshControl
                   refreshing={isRefreshing}
@@ -508,5 +602,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     marginTop: 4,
+  },
+  loadMoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  loadMoreText: {
+    fontSize: 13,
+    color: '#6B7280',
   },
 })

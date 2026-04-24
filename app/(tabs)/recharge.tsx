@@ -155,34 +155,6 @@ export default function RechargeScreen() {
               </View>
             </View>
           </View>
-
-          {/* Summary */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Wallet</Text>
-              <Text style={styles.summaryValue}>Sin seleccionar</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Monto a recargar</Text>
-              <Text style={styles.summaryValueHighlight}>
-                ${activeAmount.toLocaleString()}
-              </Text>
-            </View>
-          </View>
-
-          {/* Confirm Button */}
-          <TouchableOpacity
-            style={[
-              styles.confirmButton,
-              activeAmount === 0 && styles.confirmButtonDisabled,
-            ]}
-            disabled={activeAmount === 0}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add-circle" size={24} color="#fff" />
-            <Text style={styles.confirmButtonText}>Realizar Recarga</Text>
-          </TouchableOpacity>
         </ScrollView>
       )}
     </View>
@@ -342,64 +314,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#1F2937',
-  },
-  summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#9CA3AF',
-  },
-  summaryValueHighlight: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 16,
-  },
-  confirmButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginTop: 24,
-    gap: 8,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  confirmButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    shadowOpacity: 0,
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
   },
 })

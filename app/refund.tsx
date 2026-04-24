@@ -1,3 +1,8 @@
+import { formatCurrency } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth-store'
+import { Ionicons } from '@expo/vector-icons'
+import { router, useLocalSearchParams } from 'expo-router'
 import React, { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -7,17 +12,13 @@ import {
   Modal,
   Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { router, useLocalSearchParams } from 'expo-router'
-import { useAuthStore } from '@/stores/auth-store'
-import { supabase } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/api'
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || ''
 
@@ -196,6 +197,7 @@ export default function RefundScreen() {
     setRefundQty(prev => {
       const next = new Map(prev)
       for (const item of payment.items) {
+        if (item.line_total_cents === 0) continue // skip pass-covered items
         const available = getAvailableQty(payment, item)
         if (available > 0) {
           next.set(item.id, available)
@@ -411,39 +413,41 @@ export default function RefundScreen() {
               const refunded = payment.refundedQtyMap.get(item.id) ?? 0
               const currentQty = getRefundQty(item.id)
               const isFullyRefunded = available === 0
+              const isZeroPrice = item.line_total_cents === 0
+              const isDisabled = isFullyRefunded || isZeroPrice
               const isSelected = currentQty > 0
 
               return (
                 <View
                   key={item.id}
-                  style={[styles.itemRow, isFullyRefunded && styles.itemRowRefunded]}
+                  style={[styles.itemRow, isDisabled && styles.itemRowRefunded]}
                 >
                   {/* Left: checkbox / disabled marker */}
                   <TouchableOpacity
                     onPress={() => {
-                      if (isFullyRefunded) return
+                      if (isDisabled) return
                       if (isSelected) {
                         setItemRefundQty(item.id, 0)
                       } else {
                         setItemRefundQty(item.id, available)
                       }
                     }}
-                    disabled={isFullyRefunded}
+                    disabled={isDisabled}
                     style={{ padding: 2 }}
                   >
                     <View style={[
                       styles.checkbox,
-                      isFullyRefunded && styles.checkboxDisabled,
+                      isDisabled && styles.checkboxDisabled,
                       isSelected && styles.checkboxChecked,
                     ]}>
                       {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
-                      {isFullyRefunded && <Ionicons name="close" size={14} color="#D1D5DB" />}
+                      {isDisabled && !isSelected && <Ionicons name="close" size={14} color="#D1D5DB" />}
                     </View>
                   </TouchableOpacity>
 
                   {/* Center: item info */}
                   <View style={styles.itemInfo}>
-                    <Text style={[styles.itemName, isFullyRefunded && styles.itemNameRefunded]} numberOfLines={1}>
+                    <Text style={[styles.itemName, isDisabled && styles.itemNameRefunded]} numberOfLines={1}>
                       {item.base_product?.name || 'Producto'}
                     </Text>
                     <Text style={styles.itemDetail}>
@@ -457,10 +461,15 @@ export default function RefundScreen() {
                         {refunded}/{item.quantity} reembolsado(s)
                       </Text>
                     )}
+                    {isZeroPrice && !isFullyRefunded && (
+                      <Text style={styles.itemRefundedLabel}>
+                        Incluido en pase — sin costo
+                      </Text>
+                    )}
                   </View>
 
                   {/* Right: quantity stepper or amount */}
-                  {!isFullyRefunded && isSelected ? (
+                  {!isDisabled && isSelected ? (
                     <View style={styles.qtyStepperContainer}>
                       <View style={styles.qtyStepper}>
                         <TouchableOpacity
@@ -484,7 +493,7 @@ export default function RefundScreen() {
                         {formatCurrency(item.unit_price_cents * currentQty)}
                       </Text>
                     </View>
-                  ) : !isFullyRefunded ? (
+                  ) : !isDisabled ? (
                     <Text style={styles.itemAmount}>
                       {formatCurrency(item.line_total_cents)}
                     </Text>
@@ -524,73 +533,79 @@ export default function RefundScreen() {
         />
         <View style={styles.modalContent}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Confirmar Reembolso</Text>
-
-          {/* Summary */}
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Wallet</Text>
-              <Text style={styles.summaryValue}>{walletName || walletPhone || `QR: ${code5}`}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Items</Text>
-              <Text style={styles.summaryValue}>
-                {selectedItemsList.reduce((sum, s) => sum + s.qty, 0)} unidad(es)
-              </Text>
-            </View>
-            <View style={[styles.summaryRow, styles.summaryRowTotal]}>
-              <Text style={styles.summaryTotalLabel}>Total a reembolsar</Text>
-              <Text style={styles.summaryTotalValue}>{formatCurrency(totalRefundCents)}</Text>
-            </View>
-          </View>
-
-          {/* Products list */}
-          <View style={styles.summaryProducts}>
-            {selectedItemsList.map(({ item, qty }) => (
-              <Text key={item.id} style={styles.summaryProductText}>
-                • {qty}x {item.base_product?.name || 'Producto'} — {formatCurrency(item.unit_price_cents * qty)}
-              </Text>
-            ))}
-          </View>
-
-          {/* Reason */}
-          <View style={styles.formField}>
-            <Text style={styles.formLabel}>Razón del reembolso *</Text>
-            <TextInput
-              style={styles.formInput}
-              placeholder="Ej: Producto no entregado"
-              placeholderTextColor="#9CA3AF"
-              value={reason}
-              onChangeText={setReason}
-              multiline
-              autoCapitalize="sentences"
-            />
-          </View>
-
-          {/* Actions */}
-          <TouchableOpacity
-            style={[styles.confirmButton, (isProcessing || reason.trim().length < 3) && styles.confirmButtonDisabled]}
-            onPress={handleRefund}
-            disabled={isProcessing || reason.trim().length < 3}
-            activeOpacity={0.8}
+          <ScrollView
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {isProcessing ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="refresh" size={20} color="#fff" />
-                <Text style={styles.confirmButtonText}>Reembolsar {formatCurrency(totalRefundCents)}</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <Text style={styles.modalTitle}>Confirmar Reembolso</Text>
 
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowConfirm(false)}
-            disabled={isProcessing}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
+            {/* Summary */}
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Wallet</Text>
+                <Text style={styles.summaryValue}>{walletName || walletPhone || `QR: ${code5}`}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Items</Text>
+                <Text style={styles.summaryValue}>
+                  {selectedItemsList.reduce((sum, s) => sum + s.qty, 0)} unidad(es)
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, styles.summaryRowTotal]}>
+                <Text style={styles.summaryTotalLabel}>Total a reembolsar</Text>
+                <Text style={styles.summaryTotalValue}>{formatCurrency(totalRefundCents)}</Text>
+              </View>
+            </View>
+
+            {/* Products list */}
+            <View style={styles.summaryProducts}>
+              {selectedItemsList.map(({ item, qty }) => (
+                <Text key={item.id} style={styles.summaryProductText}>
+                  • {qty}x {item.base_product?.name || 'Producto'} — {formatCurrency(item.unit_price_cents * qty)}
+                </Text>
+              ))}
+            </View>
+
+            {/* Reason */}
+            <View style={styles.formField}>
+              <Text style={styles.formLabel}>Razón del reembolso *</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Ej: Producto no entregado"
+                placeholderTextColor="#9CA3AF"
+                value={reason}
+                onChangeText={setReason}
+                multiline
+                autoCapitalize="sentences"
+              />
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={[styles.confirmButton, (isProcessing || reason.trim().length < 3) && styles.confirmButtonDisabled]}
+              onPress={handleRefund}
+              disabled={isProcessing || reason.trim().length < 3}
+              activeOpacity={0.8}
+            >
+              {isProcessing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={20} color="#fff" />
+                  <Text style={styles.confirmButtonText}>Reembolsar {formatCurrency(totalRefundCents)}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowConfirm(false)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -857,7 +872,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
+    padding: 24, paddingBottom: 16, maxHeight: '85%',
   },
   modalHandle: {
     width: 40, height: 4, borderRadius: 2,

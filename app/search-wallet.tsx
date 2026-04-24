@@ -25,7 +25,7 @@ interface WalletWithQr extends Wallet {
 }
 
 export default function SearchWalletScreen() {
-  const { currentOrg, currentEvent } = useAuthStore()
+  const { currentOrg, currentEvent, isAdmin } = useAuthStore()
   
   const [permission, requestPermission] = useCameraPermissions()
   const [isScanning, setIsScanning] = useState(true)
@@ -191,13 +191,15 @@ export default function SearchWalletScreen() {
         </View>
 
         <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            style={styles.actionButtonPrimary}
-            onPress={handleViewDetails}
-          >
-            <Ionicons name="eye-outline" size={22} color="#fff" />
-            <Text style={styles.actionButtonPrimaryText}>Ver Detalles</Text>
-          </TouchableOpacity>
+          {isAdmin() && (
+            <TouchableOpacity 
+              style={styles.actionButtonPrimary}
+              onPress={handleViewDetails}
+            >
+              <Ionicons name="eye-outline" size={22} color="#fff" />
+              <Text style={styles.actionButtonPrimaryText}>Ver Detalles</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity 
             style={styles.actionButtonSecondary}

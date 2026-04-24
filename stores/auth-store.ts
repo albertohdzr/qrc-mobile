@@ -10,8 +10,8 @@ interface AuthState {
   profile: Profile | null
   
   // Organization
-  organizations: (Organization & { role: OrgRole })[]
-  currentOrg: (Organization & { role: OrgRole }) | null
+  organizations: (Organization & { role: OrgRole; disabled: boolean })[]
+  currentOrg: (Organization & { role: OrgRole; disabled: boolean }) | null
   
   // Event
   events: Event[]
@@ -27,7 +27,8 @@ interface AuthState {
   // Actions
   setSession: (session: Session | null) => void
   loadUserData: () => Promise<void>
-  setCurrentOrg: (org: Organization & { role: OrgRole }) => Promise<void>
+  setCurrentOrg: (org: Organization & { role: OrgRole; disabled: boolean }) => Promise<void>
+  refreshMembership: () => Promise<void>
   setCurrentEvent: (event: Event | null) => void
   setSelectedAreaId: (areaId: string | null) => void
   signOut: () => Promise<void>
@@ -76,21 +77,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         .eq('user_id', session.user.id)
         .single()
 
-      // Load organization memberships with org details
       const { data: memberships } = await (supabase
         .from('organization_members') as any)
         .select(`
           role,
+          disabled,
           org_id,
           organizations (*)
         `)
         .eq('user_id', session.user.id)
 
       const organizations = (memberships ?? [])
-        .filter((m: any) => m.organizations)
+        .filter((m: any) => m.organizations && !m.disabled)
         .map((m: any) => ({
           ...(m.organizations as Organization),
           role: m.role,
+          disabled: m.disabled ?? false,
         }))
 
       // Determine current org (use last_org_id from profile or first org)
@@ -167,6 +169,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setSelectedAreaId: (areaId) => {
     set({ selectedAreaId: areaId })
+  },
+
+  // Silently re-fetch the current membership to pick up role/disabled changes
+  refreshMembership: async () => {
+    const { session, currentOrg } = get()
+    if (!session?.user || !currentOrg) return
+
+    const { data: membership } = await (supabase
+      .from('organization_members') as any)
+      .select('role, disabled')
+      .eq('org_id', currentOrg.id)
+      .eq('user_id', session.user.id)
+      .maybeSingle()
+
+    if (!membership || membership.disabled) {
+      // User was removed or disabled — sign them out
+      console.warn('[auth] User disabled or removed, signing out')
+      await supabase.auth.signOut()
+      return
+    }
+
+    // Update role if it changed
+    if (membership.role !== currentOrg.role) {
+      console.log(`[auth] Role changed: ${currentOrg.role} → ${membership.role}`)
+      set({
+        currentOrg: { ...currentOrg, role: membership.role, disabled: false },
+      })
+    }
   },
 
   signOut: async () => {

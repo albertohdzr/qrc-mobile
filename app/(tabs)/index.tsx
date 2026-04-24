@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase'
 import { EventArea } from '@/types/database'
 
 export default function POSScreen() {
-  const { currentOrg, currentEvent, canAccessFeature, selectedAreaId, setSelectedAreaId } = useAuthStore()
+  const { currentOrg, currentEvent, canAccessFeature, selectedAreaId, setSelectedAreaId, refreshMembership } = useAuthStore()
   const [areas, setAreas] = useState<EventArea[]>([])
 
   // Derive the full area object from the stored ID
@@ -22,6 +22,8 @@ export default function POSScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Re-validate membership (role/disabled) on every focus
+      refreshMembership()
       if (currentOrg && currentEvent) {
         loadAreas()
       }

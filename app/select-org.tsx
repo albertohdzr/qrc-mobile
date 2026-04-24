@@ -14,7 +14,7 @@ import { Organization, OrgRole } from '@/types/database'
 export default function SelectOrgScreen() {
   const { organizations, currentOrg, setCurrentOrg } = useAuthStore()
 
-  const handleSelectOrg = async (org: Organization & { role: OrgRole }) => {
+  const handleSelectOrg = async (org: Organization & { role: OrgRole; disabled: boolean }) => {
     await setCurrentOrg(org)
     router.back()
   }
@@ -40,7 +40,7 @@ export default function SelectOrgScreen() {
     )
   }
 
-  const renderItem = ({ item }: { item: Organization & { role: OrgRole } }) => {
+  const renderItem = ({ item }: { item: Organization & { role: OrgRole; disabled: boolean } }) => {
     const isSelected = currentOrg?.id === item.id
     
     return (

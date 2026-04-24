@@ -1,4 +1,4 @@
-import { formatCurrency, processPayment } from '@/lib/api'
+import { formatCurrency, processPayment, getWalletPasses } from '@/lib/api'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
 import { CartItem, useCartStore } from '@/stores/cart-store'
@@ -45,21 +45,26 @@ const getProductImageUrl = (imagePath?: string | null) => {
 }
 
 export default function CheckoutScreen() {
-  const { currentOrg, currentEvent, selectedAreaId } = useAuthStore()
+  const { currentOrg, currentEvent, selectedAreaId, isAdmin } = useAuthStore()
   const {
     scannedCode5,
+    walletId,
     walletName,
     walletPhone,
     walletBalanceCents,
+    walletPasses,
     items,
     addItem,
     removeItem,
     updateQuantity,
     clearCart,
     clearWallet,
+    setWalletPasses,
     getTotalCents,
+    getEffectiveTotalCents,
     getItemCount,
     hasEnoughBalance,
+    isItemCoveredByPass,
   } = useCartStore()
 
   const [products, setProducts] = useState<ProductWithBase[]>([])
@@ -76,7 +81,20 @@ export default function CheckoutScreen() {
       return
     }
     loadProducts()
+    loadWalletPasses()
   }, [currentEvent])
+
+  const loadWalletPasses = async () => {
+    if (!currentEvent || !currentOrg || !walletId) return
+    try {
+      const result = await getWalletPasses(walletId, currentEvent.id, currentOrg.id)
+      if (result.success) {
+        setWalletPasses(result.passes)
+      }
+    } catch (error) {
+      console.error('Error loading wallet passes:', error)
+    }
+  }
 
   const loadProducts = async () => {
     if (!currentEvent || !currentOrg) return
@@ -144,7 +162,7 @@ export default function CheckoutScreen() {
 
     Alert.alert(
       'Confirmar Pago',
-      `¿Procesar pago de ${formatCurrency(getTotalCents())}?`,
+      `¿Procesar pago de ${formatCurrency(getEffectiveTotalCents())}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -171,7 +189,7 @@ export default function CheckoutScreen() {
               // Mostrar éxito
               Alert.alert(
                 '¡Pago Exitoso!',
-                `Se cobraron ${formatCurrency(result.movement!.amountCents)}\n\nNuevo saldo: ${formatCurrency(result.movement!.newBalanceCents)}`,
+                `Se cobraron ${formatCurrency(result.movement!.amountCents)}\n\nNuevo saldo: ${formatCurrency(result.movement!.newBalanceCents ?? 0)}`,
                 [
                   {
                     text: 'Nueva Venta',
@@ -219,9 +237,12 @@ export default function CheckoutScreen() {
   }
 
   const totalCents = getTotalCents()
-  const remainingBalance = walletBalanceCents - totalCents
+  const effectiveTotalCents = getEffectiveTotalCents()
+  const remainingBalance = walletBalanceCents - effectiveTotalCents
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const filteredProducts = products.filter((product) => {
+    // Only admins can see/sell pass products
+    if (product.is_pass && !isAdmin()) return false
     if (selectedArea && !product.event_product_areas?.some(epa => epa.area_id === selectedArea)) return false
     if (!normalizedQuery) return true
     const name = product.base_product.name?.toLowerCase() ?? ''
@@ -254,6 +275,11 @@ export default function CheckoutScreen() {
               <Text style={styles.stockBadgeText}>Agotado</Text>
             </View>
           )}
+          {product.is_pass && (
+            <View style={styles.passProductBadge}>
+              <Text style={styles.passProductBadgeText}>🎫 Pase</Text>
+            </View>
+          )}
         </View>
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={1}>
@@ -262,6 +288,15 @@ export default function CheckoutScreen() {
           <Text style={styles.productPrice}>
             {formatCurrency(product.price_cents)}
           </Text>
+          {(() => {
+            const pass = isItemCoveredByPass(product.id)
+            return pass ? (
+              <View style={styles.passBadge}>
+                <Ionicons name="ticket-outline" size={10} color="#059669" />
+                <Text style={styles.passBadgeText} numberOfLines={1}>{pass.passName}</Text>
+              </View>
+            ) : null
+          })()}
           {product.stock !== null && (
             <Text style={styles.productStock}>
               Stock: {product.stock}
@@ -433,7 +468,9 @@ export default function CheckoutScreen() {
             Total ({getItemCount()} items)
           </Text>
           <Text style={styles.footerTotal}>
-            {formatCurrency(totalCents)}
+            {effectiveTotalCents < totalCents
+              ? `${formatCurrency(effectiveTotalCents)} (${formatCurrency(totalCents - effectiveTotalCents)} en pases)`
+              : formatCurrency(effectiveTotalCents)}
           </Text>
         </View>
         <TouchableOpacity
@@ -489,6 +526,16 @@ export default function CheckoutScreen() {
                   <Text style={styles.totalLabel}>Subtotal ({getItemCount()} items)</Text>
                   <Text style={styles.totalValue}>{formatCurrency(totalCents)}</Text>
                 </View>
+                {effectiveTotalCents < totalCents && (
+                  <View style={styles.totalRow}>
+                    <Text style={[styles.totalLabel, { color: '#059669' }]}>Descuento por pases</Text>
+                    <Text style={[styles.totalValue, { color: '#059669' }]}>-{formatCurrency(totalCents - effectiveTotalCents)}</Text>
+                  </View>
+                )}
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total a cobrar</Text>
+                  <Text style={styles.totalValue}>{formatCurrency(effectiveTotalCents)}</Text>
+                </View>
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>Saldo después del pago</Text>
                   <Text style={[
@@ -520,7 +567,7 @@ export default function CheckoutScreen() {
                   <>
                     <Ionicons name="card" size={24} color="#fff" />
                     <Text style={styles.payButtonText}>
-                      Cobrar {formatCurrency(totalCents)}
+                      Cobrar {formatCurrency(effectiveTotalCents)}
                     </Text>
                   </>
                 )}
@@ -718,6 +765,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
+  passProductBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(5, 150, 105, 0.9)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  passProductBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
   productInfo: {
     marginBottom: 12,
   },
@@ -749,6 +810,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#4F46E5',
+  },
+  passBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    backgroundColor: '#D1FAE5',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    gap: 3,
+  },
+  passBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#059669',
   },
   quantityControls: {
     flexDirection: 'row',

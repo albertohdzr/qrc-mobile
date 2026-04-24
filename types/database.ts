@@ -155,6 +155,7 @@ export interface EventProduct {
   stock: number | null
   price_cents: number
   cost_cents: number | null
+  is_pass: boolean
   status: ProductStatus
   created_by: string | null
   updated_by: string | null

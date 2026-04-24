@@ -74,7 +74,14 @@ export default function EventProductsScreen() {
   const renderProduct = ({ item }: { item: ProductWithBase }) => (
     <View style={styles.productCard}>
       <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.base_product.name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.productName}>{item.base_product.name}</Text>
+          {item.is_pass && (
+            <View style={{ backgroundColor: '#D1FAE5', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#059669' }}>🎫 Pase</Text>
+            </View>
+          )}
+        </View>
         {item.base_product.description && (
           <Text style={styles.productDescription} numberOfLines={2}>
             {item.base_product.description}

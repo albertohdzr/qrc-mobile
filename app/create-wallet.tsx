@@ -22,9 +22,9 @@ export default function CreateWalletScreen() {
   
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [selectedAmount, setSelectedAmount] = useState<number>(0)
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(0)
   const [customAmount, setCustomAmount] = useState('')
-  const activeAmount = selectedAmount > 0 ? selectedAmount : (customAmount ? parseInt(customAmount) : 0)
+  const activeAmount = selectedAmount !== null ? selectedAmount : (customAmount ? parseInt(customAmount) : 0)
   const amountCents = activeAmount * 100
 
   const handleAmountSelect = (amount: number) => {
@@ -35,7 +35,7 @@ export default function CreateWalletScreen() {
   const handleCustomAmountChange = (text: string) => {
     const numericValue = text.replace(/[^0-9]/g, '')
     setCustomAmount(numericValue)
-    setSelectedAmount(0)
+    setSelectedAmount(null)
   }
 
   const handleConfirmAndScan = () => {

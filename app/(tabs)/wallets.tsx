@@ -101,6 +101,20 @@ export default function WalletsScreen() {
       const from = page * PAGE_SIZE
       const to = from + PAGE_SIZE - 1
 
+      // If searching, also find wallets by QR code
+      let qrWalletIds: string[] = []
+      if (search) {
+        const { data: qrMatches } = await (supabase
+          .from('qrs') as any)
+          .select('wallet_id')
+          .eq('org_id', currentOrg.id)
+          .ilike('code_5', `%${search}%`)
+
+        qrWalletIds = (qrMatches ?? [])
+          .map((q: any) => q.wallet_id)
+          .filter(Boolean) as string[]
+      }
+
       let query = (supabase
         .from('wallets') as any)
         .select(`*, qrs(code_5)`)
@@ -110,7 +124,11 @@ export default function WalletsScreen() {
         .range(from, to)
 
       if (search) {
-        query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
+        if (qrWalletIds.length > 0) {
+          query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%,id.in.(${qrWalletIds.join(',')})`)
+        } else {
+          query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`)
+        }
       }
 
       const { data, error } = await query
@@ -291,7 +309,7 @@ export default function WalletsScreen() {
             <Ionicons name="search-outline" size={20} color="#9CA3AF" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar por nombre o teléfono..."
+              placeholder="Buscar por nombre, teléfono o QR..."
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={handleSearchChange}

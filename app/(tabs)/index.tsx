@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   StyleSheet,
   View,
@@ -16,6 +16,7 @@ import { EventArea } from '@/types/database'
 export default function POSScreen() {
   const { currentOrg, currentEvent, canAccessFeature, selectedAreaId, setSelectedAreaId, refreshMembership } = useAuthStore()
   const [areas, setAreas] = useState<EventArea[]>([])
+  const areaScrollRef = useRef<ScrollView>(null)
 
   // Derive the full area object from the stored ID
   const selectedArea = areas.find(a => a.id === selectedAreaId) ?? null
@@ -118,6 +119,7 @@ export default function POSScreen() {
             <View style={styles.areasSection}>
               <Text style={styles.sectionTitle}>Área</Text>
               <ScrollView 
+                ref={areaScrollRef}
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.areasContainer}
@@ -129,7 +131,10 @@ export default function POSScreen() {
                       styles.areaChip,
                       selectedArea?.id === area.id && styles.areaChipActive,
                     ]}
-                    onPress={() => setSelectedAreaId(area.id)}
+                    onPress={() => {
+                      setSelectedAreaId(area.id)
+                      areaScrollRef.current?.scrollTo({ x: 0, animated: true })
+                    }}
                   >
                     <Text style={[
                       styles.areaChipText,

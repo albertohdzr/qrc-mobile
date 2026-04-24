@@ -78,7 +78,6 @@ export default function POSScreen() {
           onPress={() => router.push('/select-org')}
         >
           <Ionicons name="business-outline" size={18} color="#6B7280" />
-          <Text style={styles.contextLabel}>Organización</Text>
           <Text style={styles.contextValue} numberOfLines={1}>
             {currentOrg?.name ?? 'Seleccionar'}
           </Text>
@@ -90,7 +89,6 @@ export default function POSScreen() {
           onPress={() => router.push('/select-event')}
         >
           <Ionicons name="calendar-outline" size={18} color="#6B7280" />
-          <Text style={styles.contextLabel}>Evento</Text>
           <Text style={styles.contextValue} numberOfLines={1}>
             {currentEvent?.name ?? 'Seleccionar'}
           </Text>
